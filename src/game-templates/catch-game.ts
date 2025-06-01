@@ -1,5 +1,4 @@
 import * as Phaser from 'phaser';
-import { AILearningAssistant } from '@/services/ai-assistant';
 
 export interface CatchGameConfig {
   // 基礎配置
@@ -25,7 +24,7 @@ export interface CatchGameConfig {
     backgroundColor?: string;   // 背景顏色
   };
   
-  // AI 增強功能
+  // AI 增強功能（MVP 階段暫時移除）
   aiEnhanced?: {
     enabled: boolean;
     personalizedEncouragement?: boolean;
