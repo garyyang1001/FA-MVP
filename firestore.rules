@@ -2,195 +2,70 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ===================
-    // 輔助函數
-    // ===================
-    
-    // 檢查用戶是否已登入
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    // 檢查是否為資源擁有者
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    // 檢查是否為有效的用戶 UID
-    function isValidUser(userId) {
-      return userId is string && userId.size() > 0;
-    }
-    
-    // 檢查時間戳是否為當前時間（允許一些時間偏差）
-    function isValidTimestamp(timestamp) {
-      return timestamp is timestamp && 
-             timestamp > request.time.toMillis() - 60000 && // 不能超過 1 分鐘前
-             timestamp < request.time.toMillis() + 60000;   // 不能超過 1 分鐘後
-    }
-
-    // ===================
-    // 用戶集合規則
-    // ===================
-    
-    match /users/{userId} {
-      // 讀取權限：只有本人能讀取自己的完整資料
-      allow read: if isSignedIn() && isOwner(userId);
-      
-      // 創建權限：只能創建自己的用戶資料
-      allow create: if isSignedIn() && 
-                   isOwner(userId) &&
-                   isValidUser(userId) &&
-                   // 檢查必要欄位
-                   resource.data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt']) &&
-                   resource.data.uid == userId &&
-                   resource.data.email == request.auth.token.email;
-      
-      // 更新權限：只能更新自己的資料，且不能修改某些關鍵欄位
-      allow update: if isSignedIn() && 
-                   isOwner(userId) &&
-                   // 不能修改這些關鍵欄位
-                   !('uid' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('email' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('createdAt' in resource.data.diff(request.resource.data).affectedKeys());
-      
-      // 刪除權限：暫時不允許刪除用戶資料
-      allow delete: if false;
-    }
-
-    // ===================
-    // 遊戲集合規則
-    // ===================
-    
+    // 遊戲集合的安全規則
     match /games/{gameId} {
-      // 讀取權限：
-      // - 公開遊戲：任何人都可以讀取
-      // - 私人遊戲：只有創作者可以讀取
-      allow read: if resource.data.isPublic == true || 
-                     (isSignedIn() && isOwner(resource.data.userId));
+      // 允許任何人讀取遊戲（用於分享功能）
+      allow read: if true;
       
-      // 創建權限：只有登入用戶可以創建，且必須是自己的遊戲
-      allow create: if isSignedIn() && 
-                   isOwner(resource.data.userId) &&
-                   // 檢查必要欄位
-                   resource.data.keys().hasAll([
-                     'userId', 'gameConfig', 'creationHighlights', 
-                     'shareText', 'createdAt', 'isPublic', 'isActive'
-                   ]) &&
-                   // 檢查資料類型
-                   resource.data.userId is string &&
-                   resource.data.gameConfig is map &&
-                   resource.data.creationHighlights is list &&
-                   resource.data.shareText is string &&
-                   resource.data.isPublic is bool &&
-                   resource.data.isActive is bool &&
-                   // 初始值檢查
-                   resource.data.playCount == 0 &&
-                   resource.data.shareCount == 0 &&
-                   resource.data.likeCount == 0;
+      // 允許已認證用戶創建遊戲
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId
+        && isValidGameData(request.resource.data);
       
-      // 更新權限：
-      // - 創作者可以更新自己的遊戲
-      // - 但不能修改某些統計欄位（這些由系統更新）
-      allow update: if isSignedIn() && 
-                   isOwner(resource.data.userId) &&
-                   // 不能直接修改這些統計欄位
-                   !('playCount' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('shareCount' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('likeCount' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('createdAt' in resource.data.diff(request.resource.data).affectedKeys()) &&
-                   !('userId' in resource.data.diff(request.resource.data).affectedKeys());
+      // 只允許遊戲創作者更新自己的遊戲
+      allow update: if request.auth != null 
+        && request.auth.uid == resource.data.userId
+        && isValidGameUpdate(request.resource.data);
       
-      // 刪除權限：只有創作者可以刪除自己的遊戲
-      allow delete: if isSignedIn() && isOwner(resource.data.userId);
-    }
-
-    // ===================
-    // 遊戲遊玩記錄規則
-    // ===================
-    
-    match /gamePlays/{playId} {
-      // 讀取權限：
-      // - 遊戲創作者可以查看自己遊戲的所有遊玩記錄
-      // - 遊玩者可以查看自己的遊玩記錄
-      allow read: if isSignedIn() && 
-                     (isOwner(resource.data.playerId) || 
-                      isGameOwner(resource.data.gameId));
-      
-      // 創建權限：任何人都可以創建遊玩記錄（包括匿名用戶）
-      allow create: if resource.data.keys().hasAll(['gameId', 'score', 'duration', 'completedAt']) &&
-                   resource.data.gameId is string &&
-                   resource.data.score is number &&
-                   resource.data.duration is number &&
-                   resource.data.score >= 0 &&
-                   resource.data.duration > 0;
-      
-      // 更新權限：只有記錄擁有者可以更新（主要是為了添加評價）
-      allow update: if isSignedIn() && isOwner(resource.data.playerId);
-      
-      // 刪除權限：記錄擁有者或遊戲創作者可以刪除
-      allow delete: if isSignedIn() && 
-                   (isOwner(resource.data.playerId) || 
-                    isGameOwner(resource.data.gameId));
+      // 只允許遊戲創作者刪除自己的遊戲（軟刪除）
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
     }
     
-    // 輔助函數：檢查是否為遊戲擁有者
-    function isGameOwner(gameId) {
-      return exists(/databases/$(database)/documents/games/$(gameId)) &&
-             get(/databases/$(database)/documents/games/$(gameId)).data.userId == request.auth.uid;
+    // 用戶資料集合的安全規則  
+    match /users/{userId} {
+      // 只允許用戶讀取和寫入自己的資料
+      allow read, write: if request.auth != null 
+        && request.auth.uid == userId;
+      
+      // 允許用戶創建自己的資料
+      allow create: if request.auth != null 
+        && request.auth.uid == userId
+        && isValidUserData(request.resource.data);
     }
-
-    // ===================
-    // 分享記錄規則
-    // ===================
     
-    match /shareRecords/{shareId} {
-      // 讀取權限：遊戲創作者可以查看分享記錄統計
-      allow read: if isSignedIn() && isGameOwner(resource.data.gameId);
+    // 遊戲統計集合（可選）
+    match /gameStats/{gameId} {
+      // 允許任何人讀取遊戲統計
+      allow read: if true;
       
-      // 創建權限：任何人都可以創建分享記錄
-      allow create: if resource.data.keys().hasAll(['gameId', 'platform', 'sharedAt']) &&
-                   resource.data.gameId is string &&
-                   resource.data.platform is string &&
-                   resource.data.sharedAt is timestamp;
-      
-      // 更新權限：系統自動更新點擊和轉換統計
-      allow update: if 'clickCount' in resource.data.diff(request.resource.data).affectedKeys() ||
-                   'conversionCount' in resource.data.diff(request.resource.data).affectedKeys();
-      
-      // 刪除權限：不允許刪除分享記錄
-      allow delete: if false;
-    }
-
-    // ===================
-    // 創作會話規則
-    // ===================
-    
-    match /creationSessions/{sessionId} {
-      // 讀取權限：只有會話擁有者可以讀取
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      
-      // 創建權限：只能創建自己的會話
-      allow create: if isSignedIn() && 
-                   isOwner(resource.data.userId) &&
-                   resource.data.keys().hasAll(['userId', 'currentStep', 'isCompleted', 'startedAt']) &&
-                   resource.data.currentStep >= 0 &&
-                   resource.data.isCompleted == false;
-      
-      // 更新權限：只能更新自己的會話
-      allow update: if isSignedIn() && isOwner(resource.data.userId);
-      
-      // 刪除權限：可以刪除自己的會話
-      allow delete: if isSignedIn() && isOwner(resource.data.userId);
-    }
-
-    // ===================
-    // 默認拒絕規則
-    // ===================
-    
-    // 拒絕所有其他讀寫操作
-    match /{document=**} {
-      allow read, write: if false;
+      // 允許已認證用戶更新遊戲統計（如播放次數）
+      allow write: if request.auth != null;
     }
   }
+}
+
+// 驗證遊戲資料的完整性
+function isValidGameData(data) {
+  return data.keys().hasAll(['userId', 'gameConfig', 'createdAt']) &&
+         data.userId is string &&
+         data.gameConfig is map &&
+         data.gameConfig.keys().hasAll(['objectType', 'catcherType']) &&
+         data.createdAt is timestamp;
+}
+
+// 驗證遊戲更新資料的完整性
+function isValidGameUpdate(data) {
+  return data.keys().hasAny(['playCount', 'likes', 'isDeleted', 'lastPlayed']) &&
+         (!('playCount' in data) || data.playCount is number) &&
+         (!('likes' in data) || data.likes is number) &&
+         (!('isDeleted' in data) || data.isDeleted is bool);
+}
+
+// 驗證用戶資料的完整性
+function isValidUserData(data) {
+  return data.keys().hasAll(['uid', 'email']) &&
+         data.uid is string &&
+         data.email is string &&
+         (!('displayName' in data) || data.displayName is string);
 }
