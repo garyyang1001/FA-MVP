@@ -244,28 +244,27 @@ export class CatchGameScene extends Phaser.Scene {
     
     switch (pattern) {
       case 'zigzag':
-        // 之字形掉落
-        const timeline = this.tweens.timeline({
-          targets: object
+        // 之字形掉落 - 使用簡單的左右擺動效果
+        this.tweens.add({
+          targets: object,
+          y: this.scale.height + 50,
+          duration: speed.fallTime,
+          ease: 'Linear',
+          onUpdate: () => this.checkCatch(object),
+          onComplete: () => object.destroy()
         });
         
-        const segments = 5;
-        const segmentHeight = this.scale.height / segments;
-        
-        for (let i = 0; i < segments; i++) {
-          const targetX = Phaser.Math.Between(50, this.scale.width - 50);
-          timeline.add({
-            targets: object,
-            x: targetX,
-            y: (i + 1) * segmentHeight,
-            duration: speed.fallTime / segments,
-            ease: 'Sine.inOut',
-            onUpdate: () => this.checkCatch(object)
-          });
-        }
-        
-        timeline.play();
-        timeline.on('complete', () => object.destroy());
+        // 添加左右擺動
+        this.tweens.add({
+          targets: object,
+          x: {
+            value: '+=100',
+            duration: speed.fallTime / 4,
+            yoyo: true,
+            repeat: 3,
+            ease: 'Sine.inOut'
+          }
+        });
         break;
         
       case 'floating':
