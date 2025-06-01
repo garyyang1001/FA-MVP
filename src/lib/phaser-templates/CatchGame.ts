@@ -1,7 +1,7 @@
 // 延遲載入 Phaser，避免 SSR 問題
 let Phaser: any = null;
 
-import { OBJECT_MAPPINGS, CATCHER_MAPPINGS, COLOR_EFFECTS } from '../game-mappings';
+import { smartObjectMapping, smartCatcherMapping, COLOR_EFFECTS } from '../game-mappings';
 
 export interface GameConfig {
   objectType: string;    // 要接的物品（如：蘋果）
@@ -44,9 +44,18 @@ function createCatchGameScene(config: GameConfig) {
     private spawnTimer!: Phaser.Time.TimerEvent;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
+    // 🆕 智慧映射結果快取
+    private objectMapping: any;
+    private catcherMapping: any;
+
     constructor() {
       super({ key: 'CatchGame' });
       this.config = config;
+      
+      // 🆕 使用智慧映射系統
+      this.objectMapping = smartObjectMapping(config.objectType);
+      this.catcherMapping = smartCatcherMapping(config.catcherType);
+      
       this.setDifficulty();
     }
 
@@ -102,8 +111,8 @@ function createCatchGameScene(config: GameConfig) {
     }
 
     private createCatcher() {
-      const catcherData = CATCHER_MAPPINGS[this.config.catcherType];
-      const catcherEmoji = catcherData?.visual || '🧺';
+      // 🆕 使用智慧映射的視覺效果
+      const catcherEmoji = this.catcherMapping.visual || '🤲';
       
       this.catcher = this.add.text(
         this.scale.width / 2,
@@ -145,16 +154,14 @@ function createCatchGameScene(config: GameConfig) {
         }).setOrigin(0.5);
       }
 
-      // 接取工具說明
-      const catcherData = CATCHER_MAPPINGS[this.config.catcherType];
-      if (catcherData) {
-        this.add.text(this.scale.width - 16, 16, catcherData.specialAbility, {
-          fontSize: '16px',
-          color: '#34495e',
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          padding: { x: 8, y: 4 }
-        }).setOrigin(1, 0);
-      }
+      // 🆕 顯示智慧映射的接取工具說明
+      const abilityText = this.catcherMapping.specialAbility || `接住${this.config.objectType}`;
+      this.add.text(this.scale.width - 16, 16, abilityText, {
+        fontSize: '16px',
+        color: '#34495e',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        padding: { x: 8, y: 4 }
+      }).setOrigin(1, 0);
     }
 
     private setupGameTimer() {
@@ -190,8 +197,9 @@ function createCatchGameScene(config: GameConfig) {
       if (!this.gameActive) return;
 
       const x = Phaser.Math.Between(50, this.scale.width - 50);
-      const objectData = OBJECT_MAPPINGS[this.config.objectType];
-      const objectEmoji = objectData?.visual || '🍎';
+      
+      // 🆕 使用智慧映射的視覺效果
+      const objectEmoji = this.objectMapping.visual || '🎁';
       
       // 創建掉落物
       const fallingItem = this.add.text(x, -30, objectEmoji, {
@@ -206,8 +214,8 @@ function createCatchGameScene(config: GameConfig) {
 
       this.fallingItems.push(fallingItem);
 
-      // 根據物品特性設置下降動畫
-      this.createFallingAnimation(fallingItem, objectData);
+      // 🆕 根據智慧映射的物品特性設置下降動畫
+      this.createFallingAnimation(fallingItem, this.objectMapping);
     }
 
     private applyColorEffect(item: Phaser.GameObjects.Text, colorKey: string) {
@@ -246,43 +254,60 @@ function createCatchGameScene(config: GameConfig) {
       }
     }
 
-    private createFallingAnimation(item: Phaser.GameObjects.Text, objectData: any) {
+    private createFallingAnimation(item: Phaser.GameObjects.Text, objectMapping: any) {
       const fallDuration = Phaser.Math.Between(2000, 4000);
       
-      // 根據物品類型創建不同的下降效果
-      if (objectData) {
-        switch (objectData.behavior) {
-          case '會左右搖擺著掉下來':
-            // 香蕉的左右搖擺
-            this.tweens.add({
-              targets: item,
-              x: item.x + Phaser.Math.Between(-100, 100),
-              duration: fallDuration / 2,
-              repeat: 1,
+      // 🆕 根據智慧映射的行為創建動畫
+      if (objectMapping.behavior) {
+        const behavior = objectMapping.behavior.toLowerCase();
+        
+        if (behavior.includes('搖擺') || behavior.includes('左右')) {
+          // 左右搖擺
+          this.tweens.add({
+            targets: item,
+            x: item.x + Phaser.Math.Between(-100, 100),
+            duration: fallDuration / 2,
+            repeat: 1,
+            yoyo: true
+          });
+        }
+        else if (behavior.includes('之字') || behavior.includes('飄') || behavior.includes('輕飄飄')) {
+          // 之字形飄落
+          this.tweens.add({
+            targets: item,
+            x: {
+              value: item.x + Phaser.Math.Between(-150, 150),
+              duration: fallDuration / 3,
+              repeat: 2,
               yoyo: true
-            });
-            break;
-          case '輕飄飄地，之字形飄落':
-            // 星星的之字形飄落
-            this.tweens.add({
-              targets: item,
-              x: {
-                value: item.x + Phaser.Math.Between(-150, 150),
-                duration: fallDuration / 3,
-                repeat: 2,
-                yoyo: true
-              }
-            });
-            break;
-          case '邊轉圈邊掉下來':
-            // 笑臉的旋轉
-            this.tweens.add({
-              targets: item,
-              rotation: 2 * Math.PI,
-              duration: fallDuration,
-              repeat: 0
-            });
-            break;
+            }
+          });
+        }
+        else if (behavior.includes('轉圈') || behavior.includes('旋轉') || behavior.includes('轉')) {
+          // 旋轉下降
+          this.tweens.add({
+            targets: item,
+            rotation: 2 * Math.PI,
+            duration: fallDuration,
+            repeat: 0
+          });
+        }
+        else if (behavior.includes('跳') || behavior.includes('活潑')) {
+          // 跳躍式下降
+          this.tweens.add({
+            targets: item,
+            y: {
+              value: item.y + 100,
+              duration: fallDuration / 4,
+              repeat: 3,
+              yoyo: true,
+              ease: 'Bounce'
+            }
+          });
+        }
+        else if (behavior.includes('慢') || behavior.includes('優雅')) {
+          // 延長下降時間，讓它更慢
+          const slowDuration = fallDuration * 1.5;
         }
       }
 
@@ -310,10 +335,14 @@ function createCatchGameScene(config: GameConfig) {
     }
 
     private showStartMessage() {
+      // 🆕 使用智慧映射資訊顯示開始訊息
+      const objectEmoji = this.objectMapping.visual || '🎁';
+      const catcherEmoji = this.catcherMapping.visual || '🤲';
+      
       const startText = this.add.text(
         this.scale.width / 2,
         this.scale.height / 2,
-        '遊戲開始！\n用滑鼠或鍵盤控制移動\n接住所有東西！',
+        `遊戲開始！\n用${catcherEmoji}接住所有${objectEmoji}\n滑鼠或鍵盤控制移動`,
         {
           fontSize: '32px',
           color: '#2c3e50',
@@ -347,7 +376,15 @@ function createCatchGameScene(config: GameConfig) {
         this.catcher.x, this.catcher.y
       );
 
-      if (distance < 60 && item.y > this.scale.height - 100) {
+      // 🆕 根據接取工具大小調整接取範圍
+      let catchRadius = 60;
+      if (this.catcherMapping.size === 'large') {
+        catchRadius = 80;
+      } else if (this.catcherMapping.size === 'small') {
+        catchRadius = 40;
+      }
+
+      if (distance < catchRadius && item.y > this.scale.height - 100) {
         this.catchItem(item);
       }
     }
@@ -425,16 +462,15 @@ function createCatchGameScene(config: GameConfig) {
       // 畫面閃爍效果
       this.cameras.main.flash(100, 255, 255, 255, false);
 
-      // 根據物品特性播放特殊效果
-      const objectData = OBJECT_MAPPINGS[this.config.objectType];
-      if (objectData && objectData.specialEffect) {
-        this.showSpecialEffect(item.x, item.y, objectData.specialEffect);
+      // 🆕 根據智慧映射的特殊效果
+      if (this.objectMapping.specialEffect) {
+        this.showSpecialEffect(item.x, item.y, this.objectMapping.specialEffect);
       }
     }
 
     private showSpecialEffect(x: number, y: number, effectDescription: string) {
-      // 簡化的特殊效果實作
-      if (effectDescription.includes('愛心')) {
+      // 🆕 根據效果描述創建對應的視覺效果
+      if (effectDescription.includes('愛心') || effectDescription.includes('❤️')) {
         const hearts = ['💖', '💕', '💗'];
         hearts.forEach((heart, index) => {
           const heartEffect = this.add.text(x + (index - 1) * 30, y, heart, {
@@ -450,6 +486,44 @@ function createCatchGameScene(config: GameConfig) {
             delay: index * 200,
             onComplete: () => heartEffect.destroy()
           });
+        });
+      }
+      else if (effectDescription.includes('閃') || effectDescription.includes('光')) {
+        // 閃光效果
+        const sparkles = ['✨', '⭐', '💫'];
+        sparkles.forEach((sparkle, index) => {
+          const sparkleEffect = this.add.text(
+            x + Phaser.Math.Between(-40, 40), 
+            y + Phaser.Math.Between(-20, 20), 
+            sparkle, 
+            { fontSize: '20px' }
+          );
+          sparkleEffect.setOrigin(0.5);
+          
+          this.tweens.add({
+            targets: sparkleEffect,
+            alpha: 0,
+            scale: 2,
+            duration: 800,
+            delay: index * 100,
+            onComplete: () => sparkleEffect.destroy()
+          });
+        });
+      }
+      else if (effectDescription.includes('音') || effectDescription.includes('聲')) {
+        // 音效提示（視覺化）
+        const soundEffect = this.add.text(x, y - 30, '♪♫♪', {
+          fontSize: '18px',
+          color: '#e74c3c'
+        });
+        soundEffect.setOrigin(0.5);
+        
+        this.tweens.add({
+          targets: soundEffect,
+          y: soundEffect.y - 50,
+          alpha: 0,
+          duration: 1200,
+          onComplete: () => soundEffect.destroy()
         });
       }
     }
@@ -484,13 +558,17 @@ function createCatchGameScene(config: GameConfig) {
       const accuracy = this.stats.itemsCaught / (this.stats.itemsCaught + this.stats.itemsMissed);
       const rating = this.getRating(accuracy);
 
+      // 🆕 顯示創意物品和工具
+      const objectEmoji = this.objectMapping.visual || '🎁';
+      const catcherEmoji = this.catcherMapping.visual || '🤲';
+
       // 結束文字
       const endText = this.add.text(
         this.scale.width / 2,
         this.scale.height / 2,
         `遊戲結束！\n\n` +
+        `你用${catcherEmoji}接了${this.stats.itemsCaught}個${objectEmoji}！\n\n` +
         `最終分數: ${this.stats.score}\n` +
-        `接到物品: ${this.stats.itemsCaught}\n` +
         `錯過物品: ${this.stats.itemsMissed}\n` +
         `準確率: ${Math.round(accuracy * 100)}%\n\n` +
         `評級: ${rating}\n\n` +
