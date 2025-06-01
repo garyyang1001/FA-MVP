@@ -5,14 +5,6 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
-interface GameConfig {
-  objectType: string;
-  catcherType: string;
-  objectColor?: string;
-  difficulty: string;
-  gameTitle: string;
-}
-
 export default function PreviewPage() {
   const searchParams = useSearchParams();
   const gameContainerRef = useRef<HTMLDivElement>(null);
@@ -54,19 +46,10 @@ export default function PreviewPage() {
         phaserGameRef.current.destroy(true);
       }
 
-      // 創建新遊戲 - 使用真正的 Phaser 遊戲
-      const phaserGameConfig: GameConfig = {
-        objectType: gameConfig.objectType,
-        catcherType: gameConfig.catcherType,
-        objectColor: gameConfig.objectColor,
-        difficulty: gameConfig.difficulty as 'easy' | 'medium' | 'hard' || 'medium',
-        gameTitle: gameConfig.gameTitle
-      };
-
-      console.log('🎮 啟動 Phaser 遊戲:', phaserGameConfig);
+      console.log('🎮 啟動 Phaser 遊戲:', gameConfig);
       
       // 使用真正的 Phaser 遊戲
-      phaserGameRef.current = await createCatchGame('game-container', phaserGameConfig);
+      phaserGameRef.current = await createCatchGame('game-container', gameConfig);
       setGameStarted(true);
       
     } catch (error) {
