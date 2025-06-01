@@ -4,11 +4,12 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
-export default function GamePreviewPage() {
+// 將使用 useSearchParams 的邏輯拆分到單獨組件
+function GamePreviewContent() {
   const searchParams = useSearchParams();
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const phaserGameRef = useRef<Phaser.Game | null>(null);
@@ -303,5 +304,27 @@ export default function GamePreviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading 組件
+function GamePreviewLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">載入遊戲配置中...</h2>
+        <p className="text-gray-600">請稍候</p>
+      </div>
+    </div>
+  );
+}
+
+// 主組件
+export default function GamePreviewPage() {
+  return (
+    <Suspense fallback={<GamePreviewLoading />}>
+      <GamePreviewContent />
+    </Suspense>
   );
 }
