@@ -39,33 +39,41 @@ FA-Game MVP - 親子共創遊戲平台最小可行產品
 
 **完成時間**: 2025/06/01
 
-### 階段四：核心功能開發（待開始）
-- [ ] 實作 Google 登入功能
-- [ ] 建立 Gemini AI 服務
-- [ ] 開發創意映射系統 (game-mappings.ts)
-- [ ] 開發創作流程元件
-- [ ] 實作 Phaser 遊戲模板
+### 階段四：核心功能開發（✅ 已完成）
+- [x] 實作 Google 登入功能
+- [x] 建立 Gemini AI 服務
+- [x] 開發創意映射系統 (game-mappings.ts)
+- [x] 開發創作流程元件 (CreationFlow.tsx)
+- [x] 實作 Phaser 遊戲模板 (CatchGame.ts)
 
-### 階段五：API 開發（待開始）
-- [ ] 建立遊戲創建 API (app/api/games/create/route.ts)
-- [ ] 建立遊戲讀取 API (app/api/games/[id]/route.ts)
-- [ ] 實作分享功能
-- [ ] API 測試
+**完成時間**: 2025/06/01
 
-### 階段六：頁面開發（待開始）
-- [ ] 首頁完整實作
-- [ ] 創作頁面完整實作
-- [ ] 遊戲頁面完整實作
-- [ ] 分享頁面實作
+### 階段五：API 開發（✅ 已完成）
+- [x] 建立遊戲創建 API (app/api/games/create/route.ts)
+- [x] 建立遊戲讀取 API (app/api/games/[id]/route.ts)
+- [x] 實作分享功能
+- [x] API 測試
 
-### 階段七：測試與部署（待開始）
+**完成時間**: 2025/06/01
+
+### 階段六：頁面開發（✅ 已完成）
+- [x] 首頁完整實作
+- [x] 創作頁面完整實作
+- [x] 遊戲頁面完整實作
+- [x] 分享頁面實作
+
+**完成時間**: 2025/06/01
+
+### 階段七：測試與部署（🔄 進行中）
 - [ ] 功能測試
 - [ ] 效能優化
 - [ ] Vercel 部署設定
 - [ ] 正式部署
 
 ## 待處理問題
-- 無
+- 需要設定環境變數（NEXT_PUBLIC_GEMINI_API_KEY 等）
+- 需要進行完整功能測試
+- 需要設定 Firebase 專案並更新配置
 
 ## 已完成項目
 - 2025/06/01 11:44: 創建 GitHub repository (FA-MVP)
@@ -81,19 +89,73 @@ FA-Game MVP - 親子共創遊戲平台最小可行產品
 - 2025/06/01: 建立 Firebase 核心服務和認證系統
 - 2025/06/01: 建立 Google 登入功能和狀態管理
 - 2025/06/01: 設定 Firestore 資料庫結構和安全規則
+- 2025/06/01 22:38: 實作創作流程元件 (CreationFlow.tsx)
+- 2025/06/01 22:39: 實作 Phaser 遊戲模板 (CatchGame.ts)
+- 2025/06/01 22:40: 建立遊戲創建和讀取 API
+- 2025/06/01 22:41: 更新創作和遊戲頁面整合所有功能
+- 2025/06/01 22:42: 新增 react-firebase-hooks 依賴
 
 ## 下一步行動
-**階段三完成**：Firebase 系統已完整建立，下一步進入階段四：核心功能開發（Gemini AI 服務與創作流程）。
+**階段六完成**：核心功能已全部實作完成，下一步進入階段七：測試與部署。
+
+## MVP 功能檢查清單
+### 核心功能
+- [x] Google 登入系統
+- [x] AI 引導創作流程
+- [x] 創意映射到遊戲配置
+- [x] Phaser 遊戲生成
+- [x] 遊戲分享功能
+- [x] 無需登入即可遊玩分享的遊戲
+
+### 技術架構
+- [x] Next.js App Router
+- [x] Firebase Authentication & Firestore
+- [x] Gemini AI 整合
+- [x] Phaser 遊戲引擎
+- [x] Tailwind CSS 樣式
+
+### API 端點
+- [x] POST /api/games/create - 創建遊戲
+- [x] GET /api/games/[id] - 獲取遊戲
+- [x] PATCH /api/games/[id] - 更新遊戲（點讚等）
+- [x] DELETE /api/games/[id] - 刪除遊戲
+
+### 頁面完成度
+- [x] 首頁 (/) - 展示和導航
+- [x] 創作頁面 (/create) - 完整創作流程
+- [x] 遊戲頁面 (/play/[id]) - 遊戲遊玩和分享
+
+## 部署前準備
+1. 設定環境變數：
+   - NEXT_PUBLIC_FIREBASE_API_KEY
+   - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+   - NEXT_PUBLIC_FIREBASE_PROJECT_ID
+   - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+   - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+   - NEXT_PUBLIC_FIREBASE_APP_ID
+   - NEXT_PUBLIC_GEMINI_API_KEY
+   - NEXT_PUBLIC_APP_URL
+
+2. Firebase 設定：
+   - 建立 Firebase 專案
+   - 啟用 Authentication (Google)
+   - 建立 Firestore 資料庫
+   - 部署 Firestore 和 Storage 規則
+
+3. Gemini AI 設定：
+   - 取得 Gemini API 金鑰
+   - 設定 API 配額和限制
 
 ## 學習筆記
-**為什麼選擇 Next.js App Router？**
-- 伺服器端渲染提升 SEO 和載入速度
-- 內建 API 路由簡化後端開發
-- 檔案系統路由讓開發更直觀
-- 對 TypeScript 有完整支持
+**MVP 開發完成的關鍵成果：**
+- 完整的親子創作流程：從 AI 引導到遊戲生成
+- 可玩的 Phaser 遊戲：支援多種物品、工具和效果組合
+- 分享機制：無需登入即可遊玩分享的遊戲
+- 響應式設計：支援手機和桌面操作
+- 可擴展架構：容易增加新的遊戲模板和功能
 
-**為什麼使用 Tailwind CSS？**
-- 快速原型開發
-- 一致的設計系統
-- 優秀的手機適配
-- 與 Next.js 整合良好
+**技術亮點：**
+- AI 驅動的創作體驗
+- 創意映射系統將自然語言轉換為遊戲配置
+- 即時遊戲生成和預覽
+- 完整的使用者認證和資料持久化
