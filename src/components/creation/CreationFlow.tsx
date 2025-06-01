@@ -20,6 +20,7 @@ interface CreationState {
   gameEffect?: string;
   isLoading: boolean;
   isAiGenerated: boolean;
+  error?: string;
 }
 
 export function CreationFlow() {
@@ -47,9 +48,14 @@ export function CreationFlow() {
     setGeminiStatus(getGeminiStatus());
   }, []);
 
+  // 清除錯誤
+  const clearError = () => {
+    setState(prev => ({ ...prev, error: undefined }));
+  };
+
   // 開始創作流程
   const startCreation = async () => {
-    setState(prev => ({ ...prev, isLoading: true }));
+    setState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
     try {
       const guidance = await guideCatchGameCreation('start', []);
@@ -63,7 +69,11 @@ export function CreationFlow() {
       }));
     } catch (error) {
       console.error('Failed to start creation:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: '啟動創作流程失敗，請重試'
+      }));
     }
   };
 
@@ -78,7 +88,7 @@ export function CreationFlow() {
     };
 
     const newSteps = [...state.steps, newStep];
-    setState(prev => ({ ...prev, isLoading: true, steps: newSteps }));
+    setState(prev => ({ ...prev, isLoading: true, steps: newSteps, error: undefined }));
 
     try {
       const guidance = await guideCatchGameCreation(
@@ -103,7 +113,11 @@ export function CreationFlow() {
       }
     } catch (error) {
       console.error('Failed to process answer:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: '處理回答失敗，請重試'
+      }));
     }
 
     setParentInput('');
@@ -112,18 +126,26 @@ export function CreationFlow() {
   // 完成創作流程
   const completeCreation = async (finalSteps: CreationStep[]) => {
     try {
-      // 生成遊戲配置
+      console.log('🎮 開始完成創作流程...');
+      
+      // 生成基本遊戲配置
       const objectAnswer = finalSteps.find(s => s.id === 'object')?.answer || '';
       const catcherAnswer = finalSteps.find(s => s.id === 'catcher')?.answer || '';
       const colorAnswer = finalSteps.find(s => s.id === 'color')?.answer;
 
       const gameEffect = generateEffectDescription(objectAnswer, catcherAnswer, colorAnswer);
-      const shareText = await generateShareText(`${objectAnswer}接接樂`, finalSteps);
+      
+      console.log('🎨 生成遊戲效果:', gameEffect);
 
       // 檢查用戶是否已登入
       const currentUser = auth.currentUser;
+      console.log('👤 當前用戶:', currentUser?.uid || '未登入');
+
       if (!currentUser) {
         // 如果沒登入，創建臨時遊戲配置
+        console.log('📝 創建臨時遊戲配置...');
+        const shareText = `我家寶貝創作了「${objectAnswer}接接樂」！充滿創意的遊戲，快來一起玩吧！🎮✨`;
+        
         const tempGameData = {
           gameConfig: {
             objectType: objectAnswer,
@@ -151,23 +173,45 @@ export function CreationFlow() {
       }
 
       // 用戶已登入，調用 API 創建遊戲
+      console.log('🌐 調用 API 創建遊戲...');
+      
+      const requestBody = {
+        userId: currentUser.uid,
+        creationSteps: finalSteps,
+        gameTitle: `${objectAnswer}接接樂`
+      };
+      
+      console.log('📤 API 請求內容:', requestBody);
+      
       const response = await fetch('/api/games/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: currentUser.uid,
-          creationSteps: finalSteps,
-          gameTitle: `${objectAnswer}接接樂`
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 API 回應狀態:', response.status);
+
       if (!response.ok) {
-        throw new Error('創建遊戲失敗');
+        const errorData = await response.text();
+        console.error('❌ API 錯誤回應:', errorData);
+        throw new Error(`API 錯誤 (${response.status}): ${errorData}`);
       }
 
       const apiGameData = await response.json();
+      console.log('✅ API 成功回應:', apiGameData);
+
+      // 生成或使用 API 返回的分享文案
+      let shareText = apiGameData.shareText;
+      if (!shareText) {
+        try {
+          shareText = await generateShareText(`${objectAnswer}接接樂`, finalSteps);
+        } catch (error) {
+          console.warn('⚠️ 生成分享文案失敗:', error);
+          shareText = `我家寶貝創作了「${objectAnswer}接接樂」！充滿創意的遊戲，快來一起玩吧！🎮✨`;
+        }
+      }
       
       setState(prev => ({
         ...prev,
@@ -178,14 +222,18 @@ export function CreationFlow() {
       
       setGameData(apiGameData);
       setShowCompletion(true);
+      
     } catch (error) {
-      console.error('Failed to complete creation:', error);
+      console.error('💥 完成創作失敗:', error);
+      
       // 即使 API 調用失敗，也創建臨時遊戲配置
       const objectAnswer = finalSteps.find(s => s.id === 'object')?.answer || '';
       const catcherAnswer = finalSteps.find(s => s.id === 'catcher')?.answer || '';
       const colorAnswer = finalSteps.find(s => s.id === 'color')?.answer;
       
       const gameEffect = generateEffectDescription(objectAnswer, catcherAnswer, colorAnswer);
+      const shareText = '遊戲創作完成！雖然保存時遇到問題，但您可以在此預覽遊戲效果。';
+      
       const tempGameData = {
         gameConfig: {
           objectType: objectAnswer,
@@ -196,15 +244,17 @@ export function CreationFlow() {
         },
         creationSteps: finalSteps,
         gameEffect,
-        shareText: '遊戲創作完成！雖然保存時遇到問題，但您可以在此預覽遊戲效果。',
-        isTemporary: true
+        shareText,
+        isTemporary: true,
+        error: error instanceof Error ? error.message : '未知錯誤'
       };
       
       setState(prev => ({
         ...prev,
         gameEffect,
-        guidance: tempGameData.shareText,
-        isLoading: false
+        guidance: shareText,
+        isLoading: false,
+        error: '遊戲已創建但無法保存，您仍可以預覽遊戲'
       }));
       
       setGameData(tempGameData);
@@ -215,7 +265,7 @@ export function CreationFlow() {
   // 導向遊戲頁面或顯示遊戲預覽
   const goToGame = () => {
     if (gameData) {
-      if (gameData.gameId) {
+      if (gameData.gameId && !gameData.gameId.startsWith('temp_')) {
         // 有真實的遊戲 ID，導向遊戲頁面
         router.push(`/play/${gameData.gameId}`);
       } else {
@@ -250,6 +300,16 @@ export function CreationFlow() {
         <div className="bg-green-50 p-8 rounded-lg mb-6">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold text-green-800 mb-4">創作完成！</h2>
+          
+          {/* 錯誤警告（如果有的話） */}
+          {state.error && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center">
+                <span className="text-yellow-600 mr-2">⚠️</span>
+                <p className="text-yellow-800 text-sm">{state.error}</p>
+              </div>
+            </div>
+          )}
           
           {state.gameEffect && (
             <div className="bg-white p-4 rounded-lg mb-4">
@@ -309,6 +369,24 @@ export function CreationFlow() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      {/* 錯誤警告 */}
+      {state.error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-red-600 mr-2">❌</span>
+              <p className="text-red-800">{state.error}</p>
+            </div>
+            <button 
+              onClick={clearError}
+              className="text-red-600 hover:text-red-800"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* AI 狀態指示器 */}
       {!geminiStatus.isConfigured && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
