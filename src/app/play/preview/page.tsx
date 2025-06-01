@@ -1,11 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
-export default function PreviewPage() {
+// 將主要邏輯移到單獨的元件中
+function PreviewContent() {
   const searchParams = useSearchParams();
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const phaserGameRef = useRef<Phaser.Game | null>(null);
@@ -238,5 +240,23 @@ export default function PreviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 主頁面元件，使用 Suspense 包裝
+export default function PreviewPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">載入中...</p>
+          </div>
+        </div>
+      }
+    >
+      <PreviewContent />
+    </Suspense>
   );
 }
