@@ -113,10 +113,34 @@ export function CreationFlow() {
       // 檢查用戶是否已登入
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error('用戶未登入');
+        // 如果沒登入，創建臨時遊戲配置
+        const tempGameData = {
+          gameConfig: {
+            objectType: objectAnswer,
+            catcherType: catcherAnswer,
+            objectColor: colorAnswer,
+            difficulty: 'medium',
+            gameTitle: `${objectAnswer}接接樂`
+          },
+          creationSteps: finalSteps,
+          gameEffect,
+          shareText,
+          isTemporary: true
+        };
+        
+        setState(prev => ({
+          ...prev,
+          gameEffect,
+          guidance: shareText,
+          isLoading: false
+        }));
+        
+        setGameData(tempGameData);
+        setShowCompletion(true);
+        return;
       }
 
-      // 調用 API 創建遊戲
+      // 用戶已登入，調用 API 創建遊戲
       const response = await fetch('/api/games/create', {
         method: 'POST',
         headers: {
@@ -133,7 +157,7 @@ export function CreationFlow() {
         throw new Error('創建遊戲失敗');
       }
 
-      const gameData = await response.json();
+      const apiGameData = await response.json();
       
       setState(prev => ({
         ...prev,
@@ -142,33 +166,53 @@ export function CreationFlow() {
         isLoading: false
       }));
       
-      setGameData(gameData);
+      setGameData(apiGameData);
       setShowCompletion(true);
     } catch (error) {
       console.error('Failed to complete creation:', error);
-      // 即使 API 調用失敗，也顯示本地預覽
-      const gameEffect = generateEffectDescription(
-        finalSteps.find(s => s.id === 'object')?.answer || '',
-        finalSteps.find(s => s.id === 'catcher')?.answer || '',
-        finalSteps.find(s => s.id === 'color')?.answer
-      );
+      // 即使 API 調用失敗，也創建臨時遊戲配置
+      const objectAnswer = finalSteps.find(s => s.id === 'object')?.answer || '';
+      const catcherAnswer = finalSteps.find(s => s.id === 'catcher')?.answer || '';
+      const colorAnswer = finalSteps.find(s => s.id === 'color')?.answer;
+      
+      const gameEffect = generateEffectDescription(objectAnswer, catcherAnswer, colorAnswer);
+      const tempGameData = {
+        gameConfig: {
+          objectType: objectAnswer,
+          catcherType: catcherAnswer,
+          objectColor: colorAnswer,
+          difficulty: 'medium',
+          gameTitle: `${objectAnswer}接接樂`
+        },
+        creationSteps: finalSteps,
+        gameEffect,
+        shareText: '遊戲創作完成！雖然保存時遇到問題，但您可以在此預覽遊戲效果。',
+        isTemporary: true
+      };
+      
       setState(prev => ({
         ...prev,
         gameEffect,
-        guidance: '遊戲創作完成！雖然保存時遇到問題，但您可以在此預覽遊戲效果。',
+        guidance: tempGameData.shareText,
         isLoading: false
       }));
+      
+      setGameData(tempGameData);
       setShowCompletion(true);
     }
   };
 
-  // 導向遊戲頁面
+  // 導向遊戲頁面或顯示遊戲預覽
   const goToGame = () => {
-    if (gameData && gameData.gameId) {
-      router.push(`/play/${gameData.gameId}`);
-    } else {
-      // 如果沒有遊戲 ID，創建一個臨時的遊戲體驗
-      alert('遊戲將在新版本中支援！目前可以查看創作效果。');
+    if (gameData) {
+      if (gameData.gameId) {
+        // 有真實的遊戲 ID，導向遊戲頁面
+        router.push(`/play/${gameData.gameId}`);
+      } else {
+        // 創建臨時遊戲頁面
+        const gameConfigEncoded = encodeURIComponent(JSON.stringify(gameData.gameConfig));
+        router.push(`/play/preview?config=${gameConfigEncoded}`);
+      }
     }
   };
 
@@ -214,7 +258,7 @@ export function CreationFlow() {
               onClick={goToGame}
               className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium"
             >
-              {gameData?.gameId ? '立即遊玩！' : '查看效果預覽'}
+              🎮 立即遊玩！
             </button>
             
             <button
@@ -239,6 +283,14 @@ export function CreationFlow() {
               創作新遊戲
             </button>
           </div>
+
+          {gameData?.isTemporary && (
+            <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+              <p className="text-yellow-700 text-sm">
+                💡 提示：登入後可以永久保存您的遊戲作品！
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
