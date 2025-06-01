@@ -1,3 +1,6 @@
+// 為特定頁面關閉靜態生成，確保動態渲染
+export const dynamic = 'force-dynamic';
+
 'use client';
 
 import Link from 'next/link';
