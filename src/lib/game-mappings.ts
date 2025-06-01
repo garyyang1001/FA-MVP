@@ -1,6 +1,6 @@
 /**
- * 創意映射系統
- * 將孩子的創意想法映射到具體的遊戲效果
+ * 智慧創意映射系統
+ * 能夠處理孩子的任意創意想法，不局限於預定義清單
  */
 
 export interface CreativeMapping {
@@ -16,8 +16,8 @@ export interface GameEffectMapping {
   encouragement: string[];
 }
 
-// 物品類型映射
-export const OBJECT_MAPPINGS: Record<string, CreativeMapping> = {
+// 預定義的精心設計物品（已知的好效果）
+export const PREDEFINED_OBJECTS: Record<string, CreativeMapping> = {
   // 水果類
   "蘋果": {
     visual: "🍎",
@@ -99,8 +99,37 @@ export const OBJECT_MAPPINGS: Record<string, CreativeMapping> = {
   }
 };
 
-// 接取工具映射
-export const CATCHER_MAPPINGS: Record<string, {
+// 🆕 智慧表情符號映射表 - 處理任意輸入
+export const EMOJI_MAPPINGS: Record<string, string> = {
+  // 動物類
+  "恐龍": "🦕", "小狗": "🐶", "貓咪": "🐱", "熊": "🐻", "兔子": "🐰",
+  "老虎": "🐯", "獅子": "🦁", "熊貓": "🐼", "小鳥": "🐦", "企鵝": "🐧",
+  "魚": "🐟", "鯨魚": "🐋", "海豚": "🐬", "蝴蝶": "🦋", "蜜蜂": "🐝",
+  
+  // 食物類
+  "冰淇淋": "🍦", "蛋糕": "🎂", "餅乾": "🍪", "巧克力": "🍫", "糖果": "🍭",
+  "漢堡": "🍔", "披薩": "🍕", "壽司": "🍣", "麵條": "🍜", "飯糰": "🍙",
+  "草莓": "🍓", "櫻桃": "🍒", "葡萄": "🍇", "橘子": "🍊", "檸檬": "🍋",
+  
+  // 交通工具
+  "汽車": "🚗", "飛機": "✈️", "火車": "🚂", "船": "⛵", "腳踏車": "🚲",
+  "公車": "🚌", "消防車": "🚒", "救護車": "🚑", "警車": "🚓", "計程車": "🚕",
+  
+  // 玩具類
+  "球": "⚽", "娃娃": "🎎", "積木": "🧱", "玩具": "🧸", "風箏": "🪁",
+  "氣球": "🎈", "禮物": "🎁", "皇冠": "👑", "鑽石": "💎", "寶石": "💍",
+  
+  // 自然類
+  "花": "🌸", "樹": "🌳", "葉子": "🍃", "太陽": "☀️", "雪花": "❄️",
+  "雨滴": "💧", "閃電": "⚡", "火": "🔥", "石頭": "🪨", "貝殼": "🐚",
+  
+  // 符號類
+  "愛": "💕", "心": "💖", "星": "⭐", "音樂": "🎵", "燈泡": "💡",
+  "鑰匙": "🔑", "皇冠": "👑", "魔法": "🪄", "閃電": "⚡", "火焰": "🔥"
+};
+
+// 預定義接取工具
+export const PREDEFINED_CATCHERS: Record<string, {
   visual: string;
   size: 'small' | 'medium' | 'large';
   specialAbility: string;
@@ -144,6 +173,12 @@ export const CATCHER_MAPPINGS: Record<string, {
   }
 };
 
+// 工具表情符號映射
+export const CATCHER_EMOJI_MAPPINGS: Record<string, string> = {
+  "盒子": "📦", "袋子": "🎒", "帽子": "🎩", "杯子": "☕", "碗": "🥣",
+  "鍋子": "🍳", "桶子": "🪣", "傘": "☂️", "毯子": "🛏️", "袋": "👜"
+};
+
 // 顏色效果映射
 export const COLOR_EFFECTS: Record<string, {
   effect: string;
@@ -172,29 +207,142 @@ export const COLOR_EFFECTS: Record<string, {
   }
 };
 
-// 根據孩子的描述推斷遊戲配置
+// 🆕 智慧映射函數 - 能處理任意輸入
+export function smartObjectMapping(input: string): CreativeMapping {
+  const cleanInput = input.trim().toLowerCase();
+  
+  // 1. 先檢查預定義的精心設計物品
+  for (const [key, mapping] of Object.entries(PREDEFINED_OBJECTS)) {
+    if (cleanInput.includes(key.toLowerCase())) {
+      return mapping;
+    }
+  }
+  
+  // 2. 檢查智慧表情符號映射
+  for (const [keyword, emoji] of Object.entries(EMOJI_MAPPINGS)) {
+    if (cleanInput.includes(keyword.toLowerCase())) {
+      return createDynamicMapping(keyword, emoji, input);
+    }
+  }
+  
+  // 3. 如果都找不到，創建通用映射
+  return createGenericMapping(input);
+}
+
+// 🆕 動態創建映射
+function createDynamicMapping(keyword: string, emoji: string, originalInput: string): CreativeMapping {
+  // 根據物品類型推斷行為
+  let behavior = "正常掉落下來";
+  let specialEffect = `接到時會有${keyword}的特效`;
+  let emotionalValue = "孩子的創意想像";
+  
+  // 動物類 - 添加生動行為
+  if (["恐龍", "小狗", "貓咪", "熊", "兔子", "老虎", "獅子", "熊貓", "小鳥", "企鵝"].includes(keyword)) {
+    behavior = "活潑地跳跳跳地掉下來";
+    specialEffect = `接到時會聽到${keyword}的叫聲`;
+    emotionalValue = "可愛、活潑";
+  }
+  
+  // 食物類 - 美味效果
+  else if (["冰淇淋", "蛋糕", "餅乾", "巧克力", "糖果"].includes(keyword)) {
+    behavior = "誘人地慢慢飄下來";
+    specialEffect = `接到時有美味的${keyword}香味`;
+    emotionalValue = "甜蜜、幸福";
+  }
+  
+  // 交通工具 - 有趣移動
+  else if (["汽車", "飛機", "火車", "船", "腳踏車"].includes(keyword)) {
+    behavior = `像真的${keyword}一樣移動著掉下來`;
+    specialEffect = `接到時會有${keyword}的音效`;
+    emotionalValue = "冒險、速度";
+  }
+  
+  return {
+    visual: emoji,
+    behavior,
+    specialEffect,
+    emotionalValue
+  };
+}
+
+// 🆕 通用映射創建 - 保證任何輸入都有輸出
+function createGenericMapping(input: string): CreativeMapping {
+  // 使用問號表情符號表示未知但可愛的東西
+  const emoji = "❓";
+  
+  return {
+    visual: emoji,
+    behavior: `很特別地掉下來（這是寶貝獨特的「${input}」！）`,
+    specialEffect: `接到時會有專屬於「${input}」的神秘效果`,
+    emotionalValue: "獨特、創意"
+  };
+}
+
+// 🆕 智慧工具映射
+export function smartCatcherMapping(input: string): {
+  visual: string;
+  size: 'small' | 'medium' | 'large';
+  specialAbility: string;
+  emotionalValue: string;
+} {
+  const cleanInput = input.trim().toLowerCase();
+  
+  // 1. 檢查預定義工具
+  for (const [key, mapping] of Object.entries(PREDEFINED_CATCHERS)) {
+    if (cleanInput.includes(key.toLowerCase())) {
+      return mapping;
+    }
+  }
+  
+  // 2. 檢查工具表情符號映射
+  for (const [keyword, emoji] of Object.entries(CATCHER_EMOJI_MAPPINGS)) {
+    if (cleanInput.includes(keyword.toLowerCase())) {
+      return {
+        visual: emoji,
+        size: "medium",
+        specialAbility: `用${keyword}來接住東西`,
+        emotionalValue: "孩子的創意選擇"
+      };
+    }
+  }
+  
+  // 3. 通用工具映射
+  return {
+    visual: "🤲", // 預設用手
+    size: "medium",
+    specialAbility: `用創意的方式接住「${input}」`,
+    emotionalValue: "獨特想法"
+  };
+}
+
+// 🆕 整合的智慧解釋函數
 export function interpretChildInput(input: string): {
   objectKey?: string;
   catcherKey?: string;
   colorKey?: string;
   speedDescription?: string;
+  objectMapping?: CreativeMapping;
+  catcherMapping?: any;
 } {
   const result: any = {};
   
-  // 檢測物品類型
-  for (const [key, mapping] of Object.entries(OBJECT_MAPPINGS)) {
-    if (input.includes(key) || input.includes(mapping.visual)) {
-      result.objectKey = key;
+  // 智慧物品映射 - 現在能處理任意輸入
+  result.objectMapping = smartObjectMapping(input);
+  result.objectKey = input; // 保留原始輸入作為key
+  
+  // 檢測工具
+  for (const [key, mapping] of Object.entries(PREDEFINED_CATCHERS)) {
+    if (input.includes(key)) {
+      result.catcherKey = key;
+      result.catcherMapping = mapping;
       break;
     }
   }
   
-  // 檢測接取工具
-  for (const [key, mapping] of Object.entries(CATCHER_MAPPINGS)) {
-    if (input.includes(key) || input.includes(mapping.visual)) {
-      result.catcherKey = key;
-      break;
-    }
+  // 如果沒找到預定義工具，使用智慧映射
+  if (!result.catcherKey) {
+    result.catcherMapping = smartCatcherMapping(input);
+    result.catcherKey = input;
   }
   
   // 檢測顏色
@@ -215,23 +363,20 @@ export function interpretChildInput(input: string): {
   return result;
 }
 
-// 生成遊戲效果描述（給家長看的）
+// 🆕 智慧效果描述生成
 export function generateEffectDescription(
   objectType: string,
   catcherType: string,
   color?: string
 ): string {
-  const object = OBJECT_MAPPINGS[objectType];
-  const catcher = CATCHER_MAPPINGS[catcherType];
+  // 使用智慧映射獲取物品資訊
+  const objectMapping = smartObjectMapping(objectType);
+  const catcherMapping = smartCatcherMapping(catcherType);
   
-  if (!object || !catcher) {
-    return "創造一個有趣的接物遊戲！";
-  }
-  
-  let description = `寶貝選擇了用${catcher.visual}來接${object.visual}！\n`;
-  description += `${object.behavior}，`;
-  description += `${object.specialEffect}。\n`;
-  description += `${catcher.visual}有特殊能力：${catcher.specialAbility}！`;
+  let description = `寶貝選擇了用${catcherMapping.visual}來接${objectMapping.visual}！\n`;
+  description += `${objectMapping.behavior}，`;
+  description += `${objectMapping.specialEffect}。\n`;
+  description += `${catcherMapping.visual}有特殊能力：${catcherMapping.specialAbility}！`;
   
   if (color && COLOR_EFFECTS[color]) {
     description += `\n而且是${color}的，${COLOR_EFFECTS[color].effect}！`;
@@ -239,6 +384,10 @@ export function generateEffectDescription(
   
   return description;
 }
+
+// 保持向後相容性
+export const OBJECT_MAPPINGS = PREDEFINED_OBJECTS;
+export const CATCHER_MAPPINGS = PREDEFINED_CATCHERS;
 
 // 推薦相關選擇（引導創意）
 export function suggestRelatedChoices(currentChoice: string): string[] {
