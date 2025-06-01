@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { guideCatchGameCreation, generateShareText } from '@/lib/gemini';
 import { generateEffectDescription } from '@/lib/game-mappings';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 interface CreationStep {
   id: string;
@@ -20,6 +22,7 @@ interface CreationState {
 }
 
 export function CreationFlow() {
+  const router = useRouter();
   const [state, setState] = useState<CreationState>({
     currentStep: 'start',
     steps: [],
@@ -34,6 +37,7 @@ export function CreationFlow() {
 
   const [parentInput, setParentInput] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
+  const [gameData, setGameData] = useState<any>(null);
 
   // 開始創作流程
   const startCreation = async () => {
@@ -106,6 +110,31 @@ export function CreationFlow() {
       const gameEffect = generateEffectDescription(objectAnswer, catcherAnswer, colorAnswer);
       const shareText = await generateShareText(`${objectAnswer}接接樂`, finalSteps);
 
+      // 檢查用戶是否已登入
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('用戶未登入');
+      }
+
+      // 調用 API 創建遊戲
+      const response = await fetch('/api/games/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: currentUser.uid,
+          creationSteps: finalSteps,
+          gameTitle: `${objectAnswer}接接樂`
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('創建遊戲失敗');
+      }
+
+      const gameData = await response.json();
+      
       setState(prev => ({
         ...prev,
         gameEffect,
@@ -113,10 +142,33 @@ export function CreationFlow() {
         isLoading: false
       }));
       
+      setGameData(gameData);
       setShowCompletion(true);
     } catch (error) {
       console.error('Failed to complete creation:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      // 即使 API 調用失敗，也顯示本地預覽
+      const gameEffect = generateEffectDescription(
+        finalSteps.find(s => s.id === 'object')?.answer || '',
+        finalSteps.find(s => s.id === 'catcher')?.answer || '',
+        finalSteps.find(s => s.id === 'color')?.answer
+      );
+      setState(prev => ({
+        ...prev,
+        gameEffect,
+        guidance: '遊戲創作完成！雖然保存時遇到問題，但您可以在此預覽遊戲效果。',
+        isLoading: false
+      }));
+      setShowCompletion(true);
+    }
+  };
+
+  // 導向遊戲頁面
+  const goToGame = () => {
+    if (gameData && gameData.gameId) {
+      router.push(`/play/${gameData.gameId}`);
+    } else {
+      // 如果沒有遊戲 ID，創建一個臨時的遊戲體驗
+      alert('遊戲將在新版本中支援！目前可以查看創作效果。');
     }
   };
 
@@ -157,15 +209,36 @@ export function CreationFlow() {
             <p className="text-blue-800">{state.guidance}</p>
           </div>
           
-          <button
-            onClick={() => {
-              // TODO: 導向遊戲頁面
-              console.log('Navigate to game');
-            }}
-            className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            立即遊玩！
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={goToGame}
+              className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium"
+            >
+              {gameData?.gameId ? '立即遊玩！' : '查看效果預覽'}
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowCompletion(false);
+                setState({
+                  currentStep: 'start',
+                  steps: [],
+                  guidance: '讓我們開始創作一個有趣的遊戲吧！',
+                  suggestedQuestions: [
+                    '寶貝想接什麼東西呢？水果還是星星？',
+                    '想要接可愛的小動物嗎？',
+                    '要不要接天上掉下來的愛心？'
+                  ],
+                  isLoading: false
+                });
+                setParentInput('');
+                setGameData(null);
+              }}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              創作新遊戲
+            </button>
+          </div>
         </div>
       </div>
     );
