@@ -15,12 +15,16 @@ FA-Game MVP - 親子共創遊戲平台最小可行產品
 
 **完成時間**: 2025/06/01
 
-### 階段二：Next.js 專案設置（待開始）
-- [ ] 初始化 Next.js 專案
+### 階段二：Next.js 專案設置（🚀 進行中）
+- [x] 初始化 Next.js 專案
 - [ ] 安裝必要套件 (firebase, phaser, @google/generative-ai)
 - [ ] 設定 TypeScript 配置
 - [ ] 設定 Tailwind CSS
-- [ ] 建立基本頁面結構
+- [ ] 建立基本頁面結構 (app/page.tsx, app/create/page.tsx, app/play/[id]/page.tsx)
+- [ ] 建立基本元件資料夾結構
+- [ ] 測試開發伺服器運行
+
+**預計完成時間**: 階段二完成後
 
 ### 階段三：Firebase 設置（待開始）
 - [ ] 建立 Firebase 專案
@@ -28,23 +32,26 @@ FA-Game MVP - 親子共創遊戲平台最小可行產品
 - [ ] 設定 Firestore Database
 - [ ] 設定 Firebase Storage
 - [ ] 建立安全規則
+- [ ] 測試 Firebase 連接
 
 ### 階段四：核心功能開發（待開始）
 - [ ] 實作 Google 登入功能
 - [ ] 建立 Gemini AI 服務
+- [ ] 開發創意映射系統 (game-mappings.ts)
 - [ ] 開發創作流程元件
 - [ ] 實作 Phaser 遊戲模板
 
 ### 階段五：API 開發（待開始）
-- [ ] 建立遊戲創建 API
-- [ ] 建立遊戲讀取 API
+- [ ] 建立遊戲創建 API (app/api/games/create/route.ts)
+- [ ] 建立遊戲讀取 API (app/api/games/[id]/route.ts)
 - [ ] 實作分享功能
+- [ ] API 測試
 
 ### 階段六：頁面開發（待開始）
-- [ ] 首頁
-- [ ] 創作頁面
-- [ ] 遊戲頁面
-- [ ] 分享頁面
+- [ ] 首頁完整實作
+- [ ] 創作頁面完整實作
+- [ ] 遊戲頁面完整實作
+- [ ] 分享頁面實作
 
 ### 階段七：測試與部署（待開始）
 - [ ] 功能測試
@@ -62,6 +69,20 @@ FA-Game MVP - 親子共創遊戲平台最小可行產品
 - 2025/06/01 11:46: 建立環境變數模板 (.env.example)
 - 2025/06/01 11:46: 建立 Git 忽略檔案 (.gitignore)
 - 2025/06/01 11:46: 建立完整資料夾結構
+- 2025/06/01: 初始化 Next.js 專案基礎架構
 
 ## 下一步行動
-等待確認後，將進行階段二：初始化 Next.js 專案並安裝必要套件。
+**階段二進行中**：正在設置 Next.js 專案基礎架構，下一步安裝必要套件。
+
+## 學習筆記
+**為什麼選擇 Next.js App Router？**
+- 伺服器端渲染提升 SEO 和載入速度
+- 內建 API 路由簡化後端開發
+- 檔案系統路由讓開發更直觀
+- 對 TypeScript 有完整支持
+
+**為什麼使用 Tailwind CSS？**
+- 快速原型開發
+- 一致的設計系統
+- 優秀的手機適配
+- 與 Next.js 整合良好

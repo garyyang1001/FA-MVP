@@ -1,0 +1,89 @@
+/* 引入 Tailwind CSS 的基礎樣式 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全域基礎樣式設定 - 為整個應用建立一致的視覺基礎 */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Inter', 'Noto Sans TC', sans-serif;
+}
+
+/* 為遊戲容器優化的樣式 */
+.game-container {
+  @apply w-full max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden;
+}
+
+/* 創作流程的漸進式動畫效果 */
+.creation-step {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.creation-step.active {
+  @apply transform scale-105 shadow-xl;
+}
+
+/* 按鈕的統一樣式系統 */
+.btn-primary {
+  @apply px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
+         transition-colors duration-200 font-medium shadow-md 
+         hover:shadow-lg active:transform active:scale-95;
+}
+
+.btn-secondary {
+  @apply px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 
+         transition-colors duration-200 font-medium border border-gray-300;
+}
+
+/* AI 引導區域的特殊樣式 */
+.ai-guidance {
+  @apply bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 
+         border-purple-400 p-6 rounded-r-lg shadow-sm;
+}
+
+/* 響應式字體大小 - 確保在不同裝置上都有良好的可讀性 */
+.text-responsive {
+  @apply text-base md:text-lg lg:text-xl;
+}
+
+/* 為 Phaser 遊戲畫布設定的樣式 */
+canvas {
+  @apply block mx-auto rounded-lg shadow-md;
+  max-width: 100%;
+  height: auto;
+}
+
+/* 載入動畫 */
+.loading-spinner {
+  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500;
+}
+
+/* 成功動畫效果 */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-animation {
+  animation: bounce-in 0.6s ease-out;
+}
