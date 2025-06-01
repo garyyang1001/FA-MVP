@@ -245,8 +245,10 @@ export class CatchGameScene extends Phaser.Scene {
     switch (pattern) {
       case 'zigzag':
         // 之字形掉落
-        const timeline = this.tweens.createTimeline();
-        let currentX = object.x;
+        const timeline = this.tweens.timeline({
+          targets: object
+        });
+        
         const segments = 5;
         const segmentHeight = this.scale.height / segments;
         
