@@ -8,11 +8,12 @@ import {
 } from "./game-mappings";
 
 // 檢查 API key 配置
-if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-  console.warn("Gemini API key is not properly configured");
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+if (!API_KEY && typeof window !== 'undefined') {
+  console.warn("Gemini API key is not configured");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
 export interface GameCreationPrompt {
   voiceInput: string;
@@ -70,9 +71,9 @@ ${Object.entries(COLOR_EFFECTS).map(([key, value]) =>
 export async function createGameFromVoice(
   prompt: GameCreationPrompt
 ): Promise<GameData> {
-  // 檢查 API key
-  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-    throw new Error("API key is not configured");
+  // 檢查 API 可用性
+  if (!genAI) {
+    throw new Error("Gemini AI is not configured");
   }
 
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
@@ -130,7 +131,7 @@ export async function guideCatchGameCreation(
   gameEffect?: string;
   nextStep?: string;
 }> {
-  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+  if (!genAI) {
     // 如果沒有 API Key，返回預設引導
     return getDefaultGuidance(currentStep, childAnswer);
   }
@@ -242,8 +243,8 @@ function determineNextStep(currentStep: string): string {
 }
 
 export async function generateGameAssets(gameData: GameData) {
-  // 檢查 API key
-  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+  // 檢查 API 可用性
+  if (!genAI) {
     return "遊戲素材生成中...";
   }
 
@@ -279,7 +280,7 @@ export async function generateShareText(
   gameTitle: string,
   creationSteps: CreationStep[]
 ): Promise<string> {
-  if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+  if (!genAI) {
     // 如果 API 不可用，返回預設文案
     return `我家寶貝創作了「${gameTitle}」！一起來玩吧！🎮`;
   }
