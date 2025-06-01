@@ -11,8 +11,8 @@ import {
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
-// 使用最新的 Gemini 模型
-const MODEL_NAME = "gemini-1.5-flash";
+// 使用最新的 Gemini 2.5 Flash 模型
+const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
 
 // API 狀態檢查
 export const getGeminiStatus = () => {
