@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { OBJECT_MAPPINGS, CATCHER_MAPPINGS, COLOR_EFFECTS } from '../game-mappings';
 
 export interface GameConfig {
