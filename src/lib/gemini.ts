@@ -11,6 +11,9 @@ import {
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
+// 使用最新的 Gemini 模型
+const MODEL_NAME = "gemini-1.5-flash";
+
 // API 狀態檢查
 export const getGeminiStatus = () => {
   const hasApiKey = !!API_KEY;
@@ -85,7 +88,7 @@ export async function createGameFromVoice(
     throw new Error(`Gemini AI 未正確配置 (狀態: ${status.status})`);
   }
 
-  const model = genAI!.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI!.getGenerativeModel({ model: MODEL_NAME });
 
   const systemPrompt = `
     You are an AI assistant that helps parents create educational games for children.
@@ -150,7 +153,7 @@ export async function guideCatchGameCreation(
     return { ...defaultResult, isAiGenerated: false };
   }
 
-  const model = genAI!.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI!.getGenerativeModel({ model: MODEL_NAME });
   
   try {
     // 根據當前步驟生成引導
@@ -290,7 +293,7 @@ export async function generateGameAssets(gameData: GameData) {
     return "遊戲素材生成中...";
   }
 
-  const model = genAI!.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI!.getGenerativeModel({ model: MODEL_NAME });
   
   const prompt = `
     Generate creative content for this educational game:
@@ -331,7 +334,7 @@ export async function generateShareText(
     return `我家寶貝創作了「${gameTitle}」！用${catcherAnswer}接${objectAnswer}的遊戲，充滿了孩子的創意和想像力！快來一起玩吧！🎮✨`;
   }
 
-  const model = genAI!.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI!.getGenerativeModel({ model: MODEL_NAME });
   
   const prompt = `
     根據以下親子創作過程，生成一段溫馨的分享文案（50-80字）：
