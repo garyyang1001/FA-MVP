@@ -6,6 +6,9 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
+// 強制動態渲染，避免預渲染錯誤
+export const dynamic = 'force-dynamic';
+
 // 將主要邏輯移到單獨的元件中
 function PreviewContent() {
   const searchParams = useSearchParams();
