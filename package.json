@@ -27,7 +27,6 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5",
-    "@types/phaser": "^3.80.0"
+    "eslint-config-next": "14.2.5"
   }
 }
