@@ -2,6 +2,9 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 開發環境：更寬鬆的規則用於調試
+    // 生產環境請使用更嚴格的規則
+    
     // 遊戲集合的安全規則
     match /games/{gameId} {
       // 允許任何人讀取遊戲（用於分享功能）
@@ -24,18 +27,14 @@ service cloud.firestore {
     
     // 用戶資料集合的安全規則  
     match /users/{userId} {
-      // 只允許用戶讀取和寫入自己的資料
-      allow read: if request.auth != null 
-        && request.auth.uid == userId;
+      // 開發環境：允許讀取用戶資料（僅限調試）
+      // 生產環境應該限制為 request.auth.uid == userId
+      allow read: if request.auth != null;
       
-      // 允許用戶創建自己的資料
-      allow create: if request.auth != null 
+      // 允許用戶創建和更新自己的資料
+      allow create, update: if request.auth != null 
         && request.auth.uid == userId
         && isValidUserData(request.resource.data);
-        
-      // 允許用戶更新自己的資料
-      allow update: if request.auth != null 
-        && request.auth.uid == userId;
     }
     
     // 遊戲統計集合（可選）
