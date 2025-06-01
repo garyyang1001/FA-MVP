@@ -14,6 +14,7 @@ export default function GamePreviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState('');
 
   // 載入遊戲配置
   useEffect(() => {
@@ -43,23 +44,35 @@ export default function GamePreviewPage() {
     }
   }, [searchParams]);
 
+  // 設置當前 URL（僅在客戶端）
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
+
   // 啟動遊戲
-  const startGame = () => {
+  const startGame = async () => {
     if (!gameConfig || !gameContainerRef.current) return;
 
-    // 清理現有遊戲
-    if (phaserGameRef.current) {
-      phaserGameRef.current.destroy(true);
-    }
+    try {
+      // 清理現有遊戲
+      if (phaserGameRef.current) {
+        phaserGameRef.current.destroy(true);
+      }
 
-    // 創建新遊戲
-    phaserGameRef.current = createCatchGame('game-container', gameConfig);
-    setGameStarted(true);
+      // 創建新遊戲
+      phaserGameRef.current = await createCatchGame('game-container', gameConfig);
+      setGameStarted(true);
+    } catch (error) {
+      console.error('遊戲啟動失敗:', error);
+      setError('遊戲啟動失敗，請重試');
+    }
   };
 
   // 分享遊戲
   const shareGame = async () => {
-    if (!gameConfig) return;
+    if (!gameConfig || typeof window === 'undefined') return;
 
     try {
       const shareUrl = window.location.href;
@@ -83,6 +96,8 @@ export default function GamePreviewPage() {
 
   // 複製連結
   const copyLink = async () => {
+    if (typeof window === 'undefined') return;
+    
     try {
       await navigator.clipboard.writeText(window.location.href);
       alert('遊戲連結已複製到剪貼簿！');
@@ -240,16 +255,23 @@ export default function GamePreviewPage() {
                   <button
                     onClick={shareGame}
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                    disabled={typeof window === 'undefined'}
                   >
                     📱 分享遊戲
                   </button>
                   <button
                     onClick={copyLink}
                     className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                    disabled={typeof window === 'undefined'}
                   >
                     🔗 複製連結
                   </button>
                 </div>
+                {currentUrl && (
+                  <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-500 break-all">
+                    {currentUrl}
+                  </div>
+                )}
               </div>
             </div>
           </div>
