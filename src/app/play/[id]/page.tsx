@@ -1,36 +1,180 @@
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
+'use client';
 
-// 頁面參數類型定義
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
+
 interface PlayPageProps {
   params: {
-    id: string
-  }
+    id: string;
+  };
 }
 
-// 遊戲頁面 - 這裡將是使用者遊玩創作出來的遊戲的地方
+interface GameData {
+  id: string;
+  gameConfig: GameConfig;
+  gameEffect: string;
+  shareText: string;
+  creationSteps: Array<{ id: string; question: string; answer: string }>;
+  createdAt: any;
+  playCount: number;
+  likes: number;
+  creator: {
+    userId: string;
+  };
+}
+
 export default function PlayPage({ params }: PlayPageProps) {
-  const { id } = params
+  const { id } = params;
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const phaserGameRef = useRef<Phaser.Game | null>(null);
+  
+  const [gameData, setGameData] = useState<GameData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [gameStarted, setGameStarted] = useState(false);
 
   // 基本的 ID 驗證
   if (!id || id.length < 3) {
-    notFound()
+    notFound();
   }
 
+  // 載入遊戲資料
+  useEffect(() => {
+    const fetchGameData = async () => {
+      try {
+        const response = await fetch(`/api/games/${id}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '載入遊戲失敗');
+        }
+
+        setGameData(data.game);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '未知錯誤');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGameData();
+  }, [id]);
+
+  // 啟動遊戲
+  const startGame = () => {
+    if (!gameData || !gameContainerRef.current) return;
+
+    // 清理現有遊戲
+    if (phaserGameRef.current) {
+      phaserGameRef.current.destroy(true);
+    }
+
+    // 創建新遊戲
+    const gameConfig: GameConfig = {
+      objectType: gameData.gameConfig.objectType,
+      catcherType: gameData.gameConfig.catcherType,
+      objectColor: gameData.gameConfig.objectColor,
+      difficulty: gameData.gameConfig.difficulty || 'medium',
+      gameTitle: gameData.gameConfig.gameTitle
+    };
+
+    phaserGameRef.current = createCatchGame('game-container', gameConfig);
+    setGameStarted(true);
+  };
+
+  // 分享遊戲
+  const shareGame = async () => {
+    if (!gameData) return;
+
+    try {
+      const shareUrl = window.location.href;
+      const shareData = {
+        title: gameData.gameConfig.gameTitle || '我創作的遊戲',
+        text: gameData.shareText,
+        url: shareUrl
+      };
+
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // 退回到複製連結
+        await navigator.clipboard.writeText(shareUrl);
+        alert('遊戲連結已複製到剪貼簿！');
+      }
+    } catch (error) {
+      console.error('分享失敗:', error);
+    }
+  };
+
+  // 複製連結
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert('遊戲連結已複製到剪貼簿！');
+    } catch (error) {
+      console.error('複製失敗:', error);
+      alert('複製失敗，請手動複製網址');
+    }
+  };
+
+  // 載入中狀態
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">載入遊戲中...</h2>
+          <p className="text-gray-600">請稍候</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 錯誤狀態
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-red-500 text-6xl mb-4">😞</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">遊戲載入失敗</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            <Link 
+              href="/create"
+              className="block w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              創作新遊戲
+            </Link>
+            <Link 
+              href="/"
+              className="block w-full px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              回到首頁
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameData) return null;
+
   return (
-    <div className="min-h-screen p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
         {/* 導航區域 */}
         <div className="flex items-center justify-between mb-6">
           <Link 
             href="/" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-lg"
           >
             ← 回到首頁
           </Link>
           <Link 
             href="/create" 
-            className="btn-secondary text-sm"
+            className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
           >
             🎨 創作新遊戲
           </Link>
@@ -39,106 +183,126 @@ export default function PlayPage({ params }: PlayPageProps) {
         {/* 遊戲標題區域 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-            🎮 遊戲遊玩區
+            {gameData.gameConfig.gameTitle}
           </h1>
           <p className="text-lg text-gray-600">
-            遊戲 ID: {id}
+            {gameData.gameEffect}
           </p>
-        </div>
-
-        {/* 開發階段提示 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-          <div className="flex items-center space-x-2 mb-3">
-            <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
-            <span className="text-blue-700 font-medium">
-              🚧 開發進行中
-            </span>
-          </div>
-          <p className="text-blue-600 text-sm">
-            階段二第二步：正在安裝遊戲引擎 Phaser 和相關套件
-          </p>
-          <div className="mt-4 space-y-2">
-            <div className="text-sm text-blue-700">
-              <strong>即將實現的功能：</strong>
-            </div>
-            <ul className="text-sm text-blue-600 space-y-1 ml-4">
-              <li>• 載入用戶創作的遊戲配置</li>
-              <li>• Phaser 遊戲引擎渲染</li>
-              <li>• 觸控/滑鼠操作支援</li>
-              <li>• 分數記錄與分享功能</li>
-            </ul>
+          <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-500">
+            <span>🎮 {gameData.playCount} 次遊玩</span>
+            <span>❤️ {gameData.likes} 個讚</span>
           </div>
         </div>
 
         {/* 遊戲容器區域 */}
-        <div className="game-container mx-auto mb-8">
-          <div className="aspect-[2/3] bg-gradient-to-br from-sky-100 to-purple-100 rounded-xl flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl mb-4">🎮</div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                遊戲載入中...
-              </h3>
-              <p className="text-gray-500">
-                等 Phaser 引擎安裝完成後<br />
-                這裡將顯示互動遊戲
-              </p>
-              <div className="loading-spinner mx-auto mt-4"></div>
-            </div>
+        <div className="max-w-md mx-auto mb-8">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            {!gameStarted ? (
+              <div className="aspect-[2/3] bg-gradient-to-br from-sky-100 to-purple-100 flex flex-col items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🎮</div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                    準備開始遊戲！
+                  </h3>
+                  <p className="text-gray-600 mb-6 text-sm">
+                    {gameData.gameEffect}
+                  </p>
+                  <button
+                    onClick={startGame}
+                    className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-lg font-medium"
+                  >
+                    開始遊戲 🚀
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div id="game-container" ref={gameContainerRef} className="w-full" />
+            )}
           </div>
         </div>
+
+        {/* 遊戲說明 */}
+        {gameStarted && (
+          <div className="max-w-md mx-auto mb-8 text-center">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h4 className="font-medium text-gray-800 mb-2">🎯 遊戲說明</h4>
+              <p className="text-sm text-gray-600">
+                用滑鼠或鍵盤方向鍵控制移動，接住所有掉下來的{gameData.gameConfig.objectType}！
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 遊戲資訊與分享區域 */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4">🎯 遊戲資訊</h3>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-medium text-gray-700 mb-2">創作詳情</h4>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>• 創作者：正在載入...</p>
-                <p>• 創作時間：正在載入...</p>
-                <p>• 遊戲類型：接物品遊戲</p>
-                <p>• 遊玩次數：正在載入...</p>
-              </div>
-            </div>
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              🎯 <span className="ml-2">遊戲資訊</span>
+            </h3>
             
-            <div>
-              <h4 className="font-medium text-gray-700 mb-2">分享這個遊戲</h4>
-              <div className="space-y-3">
-                <button
-                  disabled
-                  className="btn-secondary w-full opacity-50 cursor-not-allowed"
-                >
-                  📱 分享到社群媒體
-                </button>
-                <button
-                  disabled
-                  className="btn-secondary w-full opacity-50 cursor-not-allowed"
-                >
-                  🔗 複製遊戲連結
-                </button>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">創作詳情</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>• 物品類型：{gameData.gameConfig.objectType}</p>
+                  <p>• 接取工具：{gameData.gameConfig.catcherType}</p>
+                  {gameData.gameConfig.objectColor && (
+                    <p>• 顏色效果：{gameData.gameConfig.objectColor}</p>
+                  )}
+                  <p>• 難度等級：{
+                    gameData.gameConfig.difficulty === 'easy' ? '簡單' :
+                    gameData.gameConfig.difficulty === 'hard' ? '困難' : '中等'
+                  }</p>
+                  <p>• 遊玩次數：{gameData.playCount}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">分享這個遊戲</h4>
+                <div className="space-y-3">
+                  <button
+                    onClick={shareGame}
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    📱 分享遊戲
+                  </button>
+                  <button
+                    onClick={copyLink}
+                    className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  >
+                    🔗 複製連結
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* 相關遊戲推薦區域 */}
-        <div className="mt-8 text-center">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">
-            🌟 其他精彩遊戲
-          </h3>
-          <p className="text-gray-500 text-sm">
-            等資料庫連接完成後，這裡將顯示其他家庭創作的遊戲
-          </p>
+          {/* 創作過程回顧 */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              📝 <span className="ml-2">創作過程回顧</span>
+            </h3>
+            <div className="space-y-3">
+              {gameData.creationSteps.map((step, index) => (
+                <div key={step.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600 flex-shrink-0 mt-0.5">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-600 mb-1">{step.question}</div>
+                    <div className="font-medium text-gray-800">{step.answer}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-4 p-3 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-1">✨ 分享文案</h4>
+              <p className="text-green-700 text-sm">{gameData.shareText}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  )
-}
-
-// 生成靜態參數（可選，用於 SSG）
-export async function generateStaticParams() {
-  // 在實際部署時，這裡會從資料庫獲取所有遊戲 ID
-  // 現在返回空陣列，表示所有路由都使用 SSR
-  return []
+  );
 }
