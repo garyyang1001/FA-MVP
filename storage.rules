@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ===================
+    // 輔助函數
+    // ===================
+    
+    // 檢查用戶是否已登入
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // 檢查是否為檔案擁有者
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // 檢查檔案大小（以 MB 為單位）
+    function isValidFileSize(maxSizeMB) {
+      return resource.size < maxSizeMB * 1024 * 1024;
+    }
+    
+    // 檢查檔案類型
+    function isValidImageType() {
+      return resource.contentType.matches('image/.*') &&
+             (resource.contentType == 'image/jpeg' ||
+              resource.contentType == 'image/png' ||
+              resource.contentType == 'image/gif' ||
+              resource.contentType == 'image/webp');
+    }
+    
+    // 檢查檔案類型是否為音頻
+    function isValidAudioType() {
+      return resource.contentType.matches('audio/.*') &&
+             (resource.contentType == 'audio/mpeg' ||
+              resource.contentType == 'audio/mp4' ||
+              resource.contentType == 'audio/wav' ||
+              resource.contentType == 'audio/ogg');
+    }
+
+    // ===================
+    // 用戶頭像和個人檔案
+    // ===================
+    
+    match /users/{userId}/profile/{fileName} {
+      // 只有用戶本人可以上傳、讀取和刪除自己的個人檔案
+      allow read, write, delete: if isSignedIn() && 
+                                 isOwner(userId) &&
+                                 isValidImageType() &&
+                                 isValidFileSize(5); // 5MB 限制
+    }
+
+    // ===================
+    // 遊戲相關資源
+    // ===================
+    
+    // 遊戲截圖和預覽圖
+    match /games/{gameId}/screenshots/{fileName} {
+      // 任何人都可以讀取遊戲截圖
+      allow read: if true;
+      
+      // 只有遊戲創作者可以上傳截圖
+      allow write: if isSignedIn() && 
+                  isGameOwner(gameId) &&
+                  isValidImageType() &&
+                  isValidFileSize(10); // 10MB 限制
+      
+      // 只有遊戲創作者可以刪除截圖
+      allow delete: if isSignedIn() && isGameOwner(gameId);
+    }
+    
+    // 遊戲音效檔案（預留給未來功能）
+    match /games/{gameId}/audio/{fileName} {
+      // 任何人都可以讀取音效檔案
+      allow read: if true;
+      
+      // 只有遊戲創作者可以上傳音效
+      allow write: if isSignedIn() && 
+                  isGameOwner(gameId) &&
+                  isValidAudioType() &&
+                  isValidFileSize(5); // 5MB 限制
+      
+      // 只有遊戲創作者可以刪除音效
+      allow delete: if isSignedIn() && isGameOwner(gameId);
+    }
+    
+    // 輔助函數：檢查是否為遊戲擁有者
+    function isGameOwner(gameId) {
+      return exists(/databases/$(database)/documents/games/$(gameId)) &&
+             get(/databases/$(database)/documents/games/$(gameId)).data.userId == request.auth.uid;
+    }
+
+    // ===================
+    // 分享用的圖片和影片
+    // ===================
+    
+    match /shares/{shareId}/{fileName} {
+      // 任何人都可以讀取分享內容
+      allow read: if true;
+      
+      // 登入用戶可以上傳分享內容
+      allow write: if isSignedIn() &&
+                  (isValidImageType() || resource.contentType == 'video/mp4') &&
+                  isValidFileSize(50); // 50MB 限制（考慮到影片檔案）
+      
+      // 只有上傳者可以刪除分享內容
+      allow delete: if isSignedIn();
+    }
+
+    // ===================
+    // 臨時檔案和快取
+    // ===================
+    
+    match /temp/{userId}/{fileName} {
+      // 只有用戶本人可以操作臨時檔案
+      allow read, write, delete: if isSignedIn() && 
+                                 isOwner(userId) &&
+                                 isValidFileSize(20); // 20MB 限制
+    }
+
+    // ===================
+    // 系統資源（只讀）
+    // ===================
+    
+    match /system/{allPaths=**} {
+      // 系統資源任何人都可以讀取，但不能寫入
+      allow read: if true;
+      allow write, delete: if false;
+    }
+
+    // ===================
+    // 公共資源（只讀）
+    // ===================
+    
+    match /public/{allPaths=**} {
+      // 公共資源任何人都可以讀取，但只有管理員可以寫入
+      allow read: if true;
+      allow write, delete: if false; // 暫時關閉，未來可能開放給管理員
+    }
+
+    // ===================
+    // 默認拒絕規則
+    // ===================
+    
+    // 拒絕所有其他操作
+    match /{allPaths=**} {
+      allow read, write, delete: if false;
+    }
+  }
+}

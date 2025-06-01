@@ -1,10 +1,33 @@
+'use client'
+
 import Link from 'next/link'
+import { GoogleLogin, UserInfo } from '@/components/auth/GoogleLogin'
+import { useUser } from '@/hooks/useAuth'
+import { Loading } from '@/components/ui/Loading'
 
 // 首頁元件 - 這是使用者進入網站時看到的第一個頁面
 export default function HomePage() {
+  const { user, userProfile, isLoggedIn, loading } = useUser()
+
+  // 載入狀態
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading size="lg" text="載入中..." />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-2xl text-center space-y-8">
+        {/* 用戶狀態區域 */}
+        {isLoggedIn && userProfile && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+            <UserInfo className="justify-center" />
+          </div>
+        )}
+
         {/* 主標題區域 */}
         <div className="space-y-4">
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -46,17 +69,48 @@ export default function HomePage() {
         </div>
 
         {/* 行動按鈕區域 */}
-        <div className="space-y-4">
-          <Link 
-            href="/create" 
-            className="btn-primary inline-block text-lg px-8 py-4"
-          >
-            🚀 開始創作遊戲
-          </Link>
-          
-          <div className="text-sm text-gray-500">
-            <p>💡 提示：準備好與孩子一起度過 5 分鐘的創意時光</p>
-          </div>
+        <div className="space-y-6">
+          {isLoggedIn ? (
+            // 已登入用戶
+            <div className="space-y-4">
+              <Link 
+                href="/create" 
+                className="btn-primary inline-block text-lg px-8 py-4"
+              >
+                🚀 開始創作遊戲
+              </Link>
+              
+              <div className="text-sm text-gray-500">
+                <p>🎉 歡迎回來！準備好與孩子一起創造新的遊戲了嗎？</p>
+              </div>
+              
+              {userProfile && userProfile.gameCount > 0 && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-blue-700 text-sm">
+                    🎯 你已經創作了 {userProfile.gameCount} 個遊戲，
+                    總共被遊玩了 {userProfile.totalPlays} 次！
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            // 未登入用戶
+            <div className="space-y-4">
+              <div className="max-w-sm mx-auto">
+                <GoogleLogin 
+                  redirectTo="/create"
+                  size="lg"
+                  onSuccess={() => {
+                    console.log('從首頁登入成功')
+                  }}
+                />
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                <p>💡 提示：準備好與孩子一起度過 5 分鐘的創意時光</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 專案狀態指示器 - 開發階段時顯示 */}
@@ -64,11 +118,11 @@ export default function HomePage() {
           <div className="flex items-center justify-center space-x-2">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             <span className="text-green-700 font-medium">
-              ✅ Next.js 專案初始化完成
+              ✅ Firebase 認證系統已就位
             </span>
           </div>
           <p className="text-green-600 text-sm mt-2">
-            階段二第一步：Next.js 基礎架構已成功建立
+            階段三第一步：Firebase 連接與 Google 登入功能完成
           </p>
         </div>
       </div>

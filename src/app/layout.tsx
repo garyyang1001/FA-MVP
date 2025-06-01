@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { AuthProvider } from '@/hooks/useAuth'
 import './globals.css'
 
 // 設定網站的 meta 資訊，對 SEO 和分享功能很重要
@@ -33,18 +34,20 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-        {/* 這裡是所有頁面共用的外框結構 */}
-        <div className="min-h-screen flex flex-col">
-          {/* 主要內容區域 */}
-          <main className="flex-1">
-            {children}
-          </main>
-          
-          {/* 頁尾區域 - 預留給未來的版權資訊等 */}
-          <footer className="text-center text-gray-500 text-sm py-4">
-            © 2025 FA-Game. 讓每個家庭都能創造獨特的遊戲回憶
-          </footer>
-        </div>
+        {/* 認證提供者包裝整個應用 */}
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            {/* 主要內容區域 */}
+            <main className="flex-1">
+              {children}
+            </main>
+            
+            {/* 頁尾區域 - 預留給未來的版權資訊等 */}
+            <footer className="text-center text-gray-500 text-sm py-4">
+              © 2025 FA-Game. 讓每個家庭都能創造獨特的遊戲回憶
+            </footer>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   )
