@@ -1,8 +1,9 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
 interface GameConfig {
   objectType: string;
@@ -14,9 +15,13 @@ interface GameConfig {
 
 export default function PreviewPage() {
   const searchParams = useSearchParams();
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const phaserGameRef = useRef<Phaser.Game | null>(null);
+  
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
     const configParam = searchParams.get('config');
@@ -38,6 +43,46 @@ export default function PreviewPage() {
       setLoading(false);
     }
   }, [searchParams]);
+
+  // 啟動真正的 Phaser 遊戲
+  const startGame = async () => {
+    if (!gameConfig || !gameContainerRef.current) return;
+
+    try {
+      // 清理現有遊戲
+      if (phaserGameRef.current) {
+        phaserGameRef.current.destroy(true);
+      }
+
+      // 創建新遊戲 - 使用真正的 Phaser 遊戲
+      const phaserGameConfig: GameConfig = {
+        objectType: gameConfig.objectType,
+        catcherType: gameConfig.catcherType,
+        objectColor: gameConfig.objectColor,
+        difficulty: gameConfig.difficulty as 'easy' | 'medium' | 'hard' || 'medium',
+        gameTitle: gameConfig.gameTitle
+      };
+
+      console.log('🎮 啟動 Phaser 遊戲:', phaserGameConfig);
+      
+      // 使用真正的 Phaser 遊戲
+      phaserGameRef.current = await createCatchGame('game-container', phaserGameConfig);
+      setGameStarted(true);
+      
+    } catch (error) {
+      console.error('遊戲啟動失敗:', error);
+      setError('遊戲啟動失敗：' + (error instanceof Error ? error.message : '未知錯誤'));
+    }
+  };
+
+  // 清理遊戲
+  useEffect(() => {
+    return () => {
+      if (phaserGameRef.current) {
+        phaserGameRef.current.destroy(true);
+      }
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -69,153 +114,142 @@ export default function PreviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
         {/* 頁面標題 */}
-        <div className="text-center mb-8">
+        <div className="flex items-center justify-between mb-6">
           <Link 
             href="/create"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 text-lg"
+            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-lg"
           >
             ← 返回創作
           </Link>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-            <div className="text-6xl mb-4">🎮</div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              {gameConfig.gameTitle}
-            </h1>
-            <p className="text-gray-600">遊戲預覽模式</p>
+          <div className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+            🎮 即玩模式
           </div>
         </div>
 
-        {/* 遊戲配置展示 */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              📋 <span className="ml-2">遊戲設定</span>
-            </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">要接的東西：</span>
-                <span className="font-medium">{gameConfig.objectType}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">使用工具：</span>
-                <span className="font-medium">{gameConfig.catcherType}</span>
-              </div>
-              {gameConfig.objectColor && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">顏色：</span>
-                  <span className="font-medium">{gameConfig.objectColor}</span>
+        {/* 遊戲標題 */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            {gameConfig.gameTitle}
+          </h1>
+          <p className="text-gray-600">立即體驗你的創作！</p>
+        </div>
+
+        {/* 遊戲容器 */}
+        <div className="max-w-md mx-auto mb-8">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            {!gameStarted ? (
+              <div className="aspect-[2/3] bg-gradient-to-br from-sky-100 to-purple-100 flex flex-col items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🎮</div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                    準備開始遊戲！
+                  </h3>
+                  <div className="bg-white p-4 rounded-lg mb-6 text-left">
+                    <h4 className="font-medium mb-2">🎯 遊戲設定</h4>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>要接的東西: {gameConfig.objectType}</p>
+                      <p>使用工具: {gameConfig.catcherType}</p>
+                      {gameConfig.objectColor && <p>顏色: {gameConfig.objectColor}</p>}
+                      <p>難度: {
+                        gameConfig.difficulty === 'easy' ? '簡單' :
+                        gameConfig.difficulty === 'hard' ? '困難' : '中等'
+                      }</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={startGame}
+                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-lg font-medium"
+                  >
+                    🚀 開始遊戲！
+                  </button>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-gray-600">難度：</span>
-                <span className="font-medium">
-                  {gameConfig.difficulty === 'easy' ? '簡單' : 
-                   gameConfig.difficulty === 'hard' ? '困難' : '中等'}
-                </span>
+              </div>
+            ) : (
+              <div id="game-container" ref={gameContainerRef} className="w-full" />
+            )}
+          </div>
+        </div>
+
+        {/* 遊戲說明 */}
+        {gameStarted && (
+          <div className="max-w-md mx-auto mb-8 text-center">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h4 className="font-medium text-gray-800 mb-2">🎯 遊戲說明</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>🖱️ 使用滑鼠移動</p>
+                <p>⌨️ 或用方向鍵 ← → 控制</p>
+                <p>🎯 接住所有 {gameConfig.objectType}！</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 遊戲資訊 */}
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              ✨ <span className="ml-2">關於這個遊戲</span>
+            </h3>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">🎨 創作特色</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>• 這是根據孩子創意製作的真實可玩遊戲</p>
+                  <p>• 使用 Phaser 遊戲引擎開發</p>
+                  <p>• 支援觸控和鍵盤操作</p>
+                  <p>• 具備計分和時間挑戰</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">📤 分享與保存</h4>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      const shareText = `我家寶貝創作了「${gameConfig.gameTitle}」！用${gameConfig.catcherType}接${gameConfig.objectType}的遊戲，充滿了孩子的創意和想像力！快來玩玩看！🎮✨`;
+                      
+                      if (navigator.share) {
+                        navigator.share({
+                          title: gameConfig.gameTitle,
+                          text: shareText,
+                          url: window.location.href
+                        }).catch(console.error);
+                      } else {
+                        navigator.clipboard.writeText(shareText + '\n\n' + window.location.href)
+                          .then(() => alert('分享內容已複製到剪貼簿！'))
+                          .catch(() => console.error('複製失敗'));
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    📱 分享這個遊戲
+                  </button>
+                  
+                  <Link
+                    href="/create"
+                    className="block w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm text-center"
+                  >
+                    🎨 創作新遊戲
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              ✨ <span className="ml-2">預覽提示</span>
-            </h2>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-yellow-800 text-sm">
-                💡 這是遊戲預覽模式。完整的遊戲功能正在開發中，
-                目前您可以看到根據孩子的創意生成的遊戲設定。
-              </p>
+          {/* 技術說明 */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl">
+            <div className="flex items-center mb-3">
+              <span className="text-green-600 text-xl mr-2">✅</span>
+              <h4 className="font-medium text-green-800">真實遊戲體驗</h4>
             </div>
-          </div>
-        </div>
-
-        {/* 簡化遊戲預覽 */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            🎯 <span className="ml-2">遊戲概念預覽</span>
-          </h2>
-          
-          <div className="bg-gradient-to-b from-sky-200 to-green-200 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-4">
-              {gameConfig.objectType.includes('水果') || gameConfig.objectType.includes('蘋果') ? '🍎' :
-               gameConfig.objectType.includes('星') ? '⭐' :
-               gameConfig.objectType.includes('心') ? '💝' :
-               gameConfig.objectType.includes('動物') ? '🐱' : '🎁'}
-            </div>
-            
-            <p className="text-gray-700 mb-6">
-              想像一下：{gameConfig.objectColor ? `${gameConfig.objectColor}的` : ''}
-              {gameConfig.objectType}從天空中掉落，
-              你要用{gameConfig.catcherType}來接住它們！
-            </p>
-            
-            <div className="text-2xl mb-4">
-              {gameConfig.catcherType.includes('籃') ? '🧺' :
-               gameConfig.catcherType.includes('手') ? '👐' :
-               gameConfig.catcherType.includes('網') ? '🥅' : '🔧'}
-            </div>
-            
-            <p className="text-sm text-gray-600">
-              難度：{gameConfig.difficulty === 'easy' ? '東西掉得慢慢的，很好接' : 
-                   gameConfig.difficulty === 'hard' ? '東西掉得快快的，要眼明手快' : '速度剛剛好，有點挑戰'}
-            </p>
-          </div>
-        </div>
-
-        {/* 行動按鈕 */}
-        <div className="text-center space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 text-sm">
-              🚧 完整的遊戲功能正在開發中。目前您可以：
-            </p>
-            <ul className="text-blue-700 text-sm mt-2 space-y-1">
-              <li>• 查看根據孩子創意生成的遊戲設定</li>
-              <li>• 分享創作過程給親友</li>
-              <li>• 創作更多不同的遊戲</li>
-            </ul>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/create"
-              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-            >
-              🎨 創作新遊戲
-            </Link>
-            
-            <button 
-              onClick={() => {
-                const shareText = `我家寶貝創作了「${gameConfig.gameTitle}」！用${gameConfig.catcherType}接${gameConfig.objectType}的遊戲，充滿了孩子的創意和想像力！🎮✨`;
-                
-                if (navigator.share) {
-                  navigator.share({
-                    title: gameConfig.gameTitle,
-                    text: shareText,
-                    url: window.location.href
-                  }).catch(console.error);
-                } else {
-                  navigator.clipboard.writeText(shareText + '\n\n' + window.location.href)
-                    .then(() => alert('分享內容已複製到剪貼簿！'))
-                    .catch(() => console.error('複製失敗'));
-                }
-              }}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              📤 分享創作
-            </button>
-          </div>
-        </div>
-
-        {/* 開發說明 */}
-        <div className="mt-12 text-center">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-gray-600 text-sm">
-              💝 感謝您體驗 FA-Game！我們正在努力開發完整的遊戲功能，
-              讓孩子的創意能真正變成可以遊玩的遊戲。
+            <p className="text-green-700 text-sm">
+              這不是模擬或預覽 - 這是根據孩子的創意想法實際開發的可玩遊戲！
+              即使沒有永久保存，你仍然可以完整體驗遊戲的所有功能。
             </p>
           </div>
         </div>
