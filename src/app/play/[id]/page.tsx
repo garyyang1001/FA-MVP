@@ -62,31 +62,37 @@ export default function PlayPage({ params }: PlayPageProps) {
     fetchGameData();
   }, [id]);
 
-  // 啟動遊戲
-  const startGame = () => {
+  // 啟動遊戲 - 修復異步問題
+  const startGame = async () => {
     if (!gameData || !gameContainerRef.current) return;
 
-    // 清理現有遊戲
-    if (phaserGameRef.current) {
-      phaserGameRef.current.destroy(true);
+    try {
+      // 清理現有遊戲
+      if (phaserGameRef.current) {
+        phaserGameRef.current.destroy(true);
+      }
+
+      // 創建新遊戲
+      const gameConfig: GameConfig = {
+        objectType: gameData.gameConfig.objectType,
+        catcherType: gameData.gameConfig.catcherType,
+        objectColor: gameData.gameConfig.objectColor,
+        difficulty: gameData.gameConfig.difficulty || 'medium',
+        gameTitle: gameData.gameConfig.gameTitle
+      };
+
+      // 使用 await 等待異步函數完成
+      phaserGameRef.current = await createCatchGame('game-container', gameConfig);
+      setGameStarted(true);
+    } catch (error) {
+      console.error('遊戲啟動失敗:', error);
+      setError('遊戲啟動失敗，請重試');
     }
-
-    // 創建新遊戲
-    const gameConfig: GameConfig = {
-      objectType: gameData.gameConfig.objectType,
-      catcherType: gameData.gameConfig.catcherType,
-      objectColor: gameData.gameConfig.objectColor,
-      difficulty: gameData.gameConfig.difficulty || 'medium',
-      gameTitle: gameData.gameConfig.gameTitle
-    };
-
-    phaserGameRef.current = createCatchGame('game-container', gameConfig);
-    setGameStarted(true);
   };
 
   // 分享遊戲
   const shareGame = async () => {
-    if (!gameData) return;
+    if (!gameData || typeof window === 'undefined') return;
 
     try {
       const shareUrl = window.location.href;
@@ -110,6 +116,8 @@ export default function PlayPage({ params }: PlayPageProps) {
 
   // 複製連結
   const copyLink = async () => {
+    if (typeof window === 'undefined') return;
+    
     try {
       await navigator.clipboard.writeText(window.location.href);
       alert('遊戲連結已複製到剪貼簿！');
@@ -263,12 +271,14 @@ export default function PlayPage({ params }: PlayPageProps) {
                   <button
                     onClick={shareGame}
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                    disabled={typeof window === 'undefined'}
                   >
                     📱 分享遊戲
                   </button>
                   <button
                     onClick={copyLink}
                     className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                    disabled={typeof window === 'undefined'}
                   >
                     🔗 複製連結
                   </button>
