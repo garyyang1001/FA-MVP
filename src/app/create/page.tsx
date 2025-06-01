@@ -2,21 +2,28 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { GoogleLogin } from '@/components/auth/GoogleLogin';
 import { CreationFlow } from '@/components/creation/CreationFlow';
 
 export default function CreatePage() {
-  const [user, loading, error] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showCreation, setShowCreation] = useState(false);
 
-  // 如果用戶已登入，直接顯示創作流程
+  // 監聽認證狀態變化
   useEffect(() => {
-    if (user && !loading) {
-      setShowCreation(true);
-    }
-  }, [user, loading]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+      if (currentUser) {
+        setShowCreation(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   if (loading) {
     return (
@@ -29,26 +36,8 @@ export default function CreatePage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">載入時發生錯誤</h2>
-          <p className="text-gray-600 mb-4">請重新整理頁面再試一次</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            重新整理
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // 如果用戶未登入，顯示登入頁面
-  if (!user && !loading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8">
