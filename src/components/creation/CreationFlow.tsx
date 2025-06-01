@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { guideCatchGameCreation, generateShareText } from '@/lib/gemini';
+import { useState, useEffect } from 'react';
+import { guideCatchGameCreation, generateShareText, getGeminiStatus } from '@/lib/gemini';
 import { generateEffectDescription } from '@/lib/game-mappings';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -19,10 +19,12 @@ interface CreationState {
   suggestedQuestions: string[];
   gameEffect?: string;
   isLoading: boolean;
+  isAiGenerated: boolean;
 }
 
 export function CreationFlow() {
   const router = useRouter();
+  const [geminiStatus, setGeminiStatus] = useState(getGeminiStatus());
   const [state, setState] = useState<CreationState>({
     currentStep: 'start',
     steps: [],
@@ -32,12 +34,18 @@ export function CreationFlow() {
       '想要接可愛的小動物嗎？',
       '要不要接天上掉下來的愛心？'
     ],
-    isLoading: false
+    isLoading: false,
+    isAiGenerated: false
   });
 
   const [parentInput, setParentInput] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
   const [gameData, setGameData] = useState<any>(null);
+
+  // 檢查 Gemini 狀態
+  useEffect(() => {
+    setGeminiStatus(getGeminiStatus());
+  }, []);
 
   // 開始創作流程
   const startCreation = async () => {
@@ -50,7 +58,8 @@ export function CreationFlow() {
         guidance: guidance.guidance,
         suggestedQuestions: guidance.suggestedQuestions,
         currentStep: 'object',
-        isLoading: false
+        isLoading: false,
+        isAiGenerated: guidance.isAiGenerated
       }));
     } catch (error) {
       console.error('Failed to start creation:', error);
@@ -88,7 +97,8 @@ export function CreationFlow() {
           guidance: guidance.guidance,
           suggestedQuestions: guidance.suggestedQuestions,
           gameEffect: guidance.gameEffect,
-          isLoading: false
+          isLoading: false,
+          isAiGenerated: guidance.isAiGenerated
         }));
       }
     } catch (error) {
@@ -273,7 +283,8 @@ export function CreationFlow() {
                     '想要接可愛的小動物嗎？',
                     '要不要接天上掉下來的愛心？'
                   ],
-                  isLoading: false
+                  isLoading: false,
+                  isAiGenerated: false
                 });
                 setParentInput('');
                 setGameData(null);
@@ -298,6 +309,21 @@ export function CreationFlow() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      {/* AI 狀態指示器 */}
+      {!geminiStatus.isConfigured && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-600">⚠️</span>
+            <div className="flex-1">
+              <h3 className="font-medium text-amber-800">AI 引導功能未啟用</h3>
+              <p className="text-sm text-amber-700 mt-1">
+                目前使用預設引導。要啟用 AI 個性化引導，請設定 Gemini API 金鑰。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 進度指示器 */}
       <div className="flex justify-between mb-8">
         {['開始', '物品', '工具', '顏色', '完成'].map((label, index) => {
@@ -334,13 +360,23 @@ export function CreationFlow() {
       {/* AI 引導區域（只有家長看得到） */}
       <div className="bg-blue-50 p-6 rounded-lg mb-6">
         <h3 className="font-bold text-lg mb-2 flex items-center">
-          💡 <span className="ml-2">給爸爸媽媽的提示</span>
+          {state.isAiGenerated ? '🤖' : '💡'} 
+          <span className="ml-2">
+            {state.isAiGenerated ? 'AI 智慧引導' : '給爸爸媽媽的提示'}
+          </span>
+          {state.isAiGenerated && (
+            <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+              AI 生成
+            </span>
+          )}
         </h3>
         
         {state.isLoading ? (
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-            <span className="text-gray-600">AI 思考中...</span>
+            <span className="text-gray-600">
+              {geminiStatus.isConfigured ? 'AI 思考中...' : '處理中...'}
+            </span>
           </div>
         ) : (
           <>
