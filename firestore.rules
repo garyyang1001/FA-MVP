@@ -25,13 +25,17 @@ service cloud.firestore {
     // 用戶資料集合的安全規則  
     match /users/{userId} {
       // 只允許用戶讀取和寫入自己的資料
-      allow read, write: if request.auth != null 
+      allow read: if request.auth != null 
         && request.auth.uid == userId;
       
       // 允許用戶創建自己的資料
       allow create: if request.auth != null 
         && request.auth.uid == userId
         && isValidUserData(request.resource.data);
+        
+      // 允許用戶更新自己的資料
+      allow update: if request.auth != null 
+        && request.auth.uid == userId;
     }
     
     // 遊戲統計集合（可選）
@@ -50,8 +54,7 @@ function isValidGameData(data) {
   return data.keys().hasAll(['userId', 'gameConfig', 'createdAt']) &&
          data.userId is string &&
          data.gameConfig is map &&
-         data.gameConfig.keys().hasAll(['objectType', 'catcherType']) &&
-         data.createdAt is timestamp;
+         data.gameConfig.keys().hasAll(['objectType', 'catcherType']);
 }
 
 // 驗證遊戲更新資料的完整性
@@ -62,10 +65,9 @@ function isValidGameUpdate(data) {
          (!('isDeleted' in data) || data.isDeleted is bool);
 }
 
-// 驗證用戶資料的完整性
+// 驗證用戶資料的完整性（簡化版本）
 function isValidUserData(data) {
   return data.keys().hasAll(['uid', 'email']) &&
          data.uid is string &&
-         data.email is string &&
-         (!('displayName' in data) || data.displayName is string);
+         data.email is string;
 }
