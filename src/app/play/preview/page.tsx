@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { createCatchGame, GameConfig } from '@/lib/phaser-templates/CatchGame';
 
@@ -20,6 +20,7 @@ function PreviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [containerReady, setContainerReady] = useState(false);
 
   useEffect(() => {
     const configParam = searchParams.get('config');
@@ -42,39 +43,51 @@ function PreviewContent() {
     }
   }, [searchParams]);
 
+  // 使用 useLayoutEffect 確保 DOM 已準備就緒
+  useLayoutEffect(() => {
+    if (gameStarted && gameContainerRef.current) {
+      setContainerReady(true);
+    }
+  }, [gameStarted]);
+
   // 啟動真正的 Phaser 遊戲
   const startGame = async () => {
-    if (!gameConfig || !gameContainerRef.current || isStarting) return;
+    if (!gameConfig || isStarting) return;
 
     setIsStarting(true);
     setError(null);
+    setGameStarted(true); // 先設置狀態，讓容器渲染
+
+    // 等待下一個 tick，確保 DOM 更新
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       // 清理現有遊戲
       if (phaserGameRef.current) {
-        console.log('清理現有遊戲...');
+        console.log('🧹 清理現有遊戲...');
         phaserGameRef.current.destroy(true);
         phaserGameRef.current = null;
       }
 
-      console.log('🎮 啟動 Phaser 遊戲:', gameConfig);
-      
-      // 確保容器元素存在
+      // 檢查容器是否存在
       const container = document.getElementById('game-container');
       if (!container) {
-        throw new Error('找不到遊戲容器');
+        throw new Error('遊戲容器尚未準備就緒');
       }
+
+      console.log('🎮 準備啟動 Phaser 遊戲...');
+      console.log('📦 遊戲配置:', gameConfig);
+      console.log('📍 容器元素:', container);
       
-      // 使用真正的 Phaser 遊戲
+      // 建立遊戲
       const game = await createCatchGame('game-container', gameConfig);
       
       if (!game) {
-        throw new Error('遊戲創建失敗');
+        throw new Error('遊戲建立失敗');
       }
       
       phaserGameRef.current = game;
-      setGameStarted(true);
-      console.log('✅ 遊戲啟動成功');
+      console.log('✅ 遊戲啟動成功！');
       
     } catch (error) {
       console.error('❌ 遊戲啟動失敗:', error);
@@ -89,8 +102,12 @@ function PreviewContent() {
   useEffect(() => {
     return () => {
       if (phaserGameRef.current) {
-        console.log('清理遊戲實例...');
-        phaserGameRef.current.destroy(true);
+        console.log('🧹 清理遊戲實例...');
+        try {
+          phaserGameRef.current.destroy(true);
+        } catch (err) {
+          console.error('清理遊戲時出錯:', err);
+        }
       }
     };
   }, []);
@@ -157,6 +174,15 @@ function PreviewContent() {
                 <span className="text-red-600 mr-2">❌</span>
                 <p className="text-red-800">{error}</p>
               </div>
+              <button
+                onClick={() => {
+                  setError(null);
+                  setGameStarted(false);
+                }}
+                className="mt-2 text-sm text-red-600 hover:text-red-800"
+              >
+                重試
+              </button>
             </div>
           </div>
         )}
@@ -197,16 +223,38 @@ function PreviewContent() {
                       <>🚀 開始遊戲！</>
                     )}
                   </button>
+                  
+                  {/* 除錯提示 */}
+                  <div className="mt-4 text-xs text-gray-500">
+                    <p>如果遊戲無法啟動，請開啟瀏覽器控制台查看錯誤訊息</p>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div id="game-container" ref={gameContainerRef} className="w-full" style={{ minHeight: '600px' }} />
+              <div 
+                id="game-container" 
+                ref={gameContainerRef} 
+                className="w-full" 
+                style={{ 
+                  minHeight: '600px',
+                  backgroundColor: '#87CEEB'
+                }} 
+              >
+                {isStarting && (
+                  <div className="flex items-center justify-center h-[600px]">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                      <p className="text-white">載入遊戲中...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
 
         {/* 遊戲說明 */}
-        {gameStarted && (
+        {gameStarted && !isStarting && !error && (
           <div className="max-w-md mx-auto mb-8 text-center">
             <div className="bg-white p-4 rounded-lg shadow">
               <h4 className="font-medium text-gray-800 mb-2">🎯 遊戲說明</h4>
