@@ -19,6 +19,7 @@ function PreviewContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     const configParam = searchParams.get('config');
@@ -43,23 +44,44 @@ function PreviewContent() {
 
   // 啟動真正的 Phaser 遊戲
   const startGame = async () => {
-    if (!gameConfig || !gameContainerRef.current) return;
+    if (!gameConfig || !gameContainerRef.current || isStarting) return;
+
+    setIsStarting(true);
+    setError(null);
 
     try {
       // 清理現有遊戲
       if (phaserGameRef.current) {
+        console.log('清理現有遊戲...');
         phaserGameRef.current.destroy(true);
+        phaserGameRef.current = null;
       }
 
       console.log('🎮 啟動 Phaser 遊戲:', gameConfig);
       
+      // 確保容器元素存在
+      const container = document.getElementById('game-container');
+      if (!container) {
+        throw new Error('找不到遊戲容器');
+      }
+      
       // 使用真正的 Phaser 遊戲
-      phaserGameRef.current = await createCatchGame('game-container', gameConfig);
+      const game = await createCatchGame('game-container', gameConfig);
+      
+      if (!game) {
+        throw new Error('遊戲創建失敗');
+      }
+      
+      phaserGameRef.current = game;
       setGameStarted(true);
+      console.log('✅ 遊戲啟動成功');
       
     } catch (error) {
-      console.error('遊戲啟動失敗:', error);
+      console.error('❌ 遊戲啟動失敗:', error);
       setError('遊戲啟動失敗：' + (error instanceof Error ? error.message : '未知錯誤'));
+      setGameStarted(false);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -67,6 +89,7 @@ function PreviewContent() {
   useEffect(() => {
     return () => {
       if (phaserGameRef.current) {
+        console.log('清理遊戲實例...');
         phaserGameRef.current.destroy(true);
       }
     };
@@ -83,13 +106,13 @@ function PreviewContent() {
     );
   }
 
-  if (error || !gameConfig) {
+  if (!gameConfig) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-6xl mb-4">😕</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-4">無法載入遊戲</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6">{error || '缺少遊戲配置'}</p>
           <Link 
             href="/create"
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -121,10 +144,22 @@ function PreviewContent() {
         {/* 遊戲標題 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            {gameConfig.gameTitle}
+            {gameConfig.gameTitle || '我的遊戲'}
           </h1>
           <p className="text-gray-600">立即體驗你的創作！</p>
         </div>
+
+        {/* 顯示錯誤（如果有） */}
+        {error && (
+          <div className="max-w-md mx-auto mb-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <span className="text-red-600 mr-2">❌</span>
+                <p className="text-red-800">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 遊戲容器 */}
         <div className="max-w-md mx-auto mb-8">
@@ -150,14 +185,22 @@ function PreviewContent() {
                   </div>
                   <button
                     onClick={startGame}
-                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-lg font-medium"
+                    disabled={isStarting}
+                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-lg font-medium"
                   >
-                    🚀 開始遊戲！
+                    {isStarting ? (
+                      <>
+                        <span className="inline-block animate-spin mr-2">⏳</span>
+                        載入中...
+                      </>
+                    ) : (
+                      <>🚀 開始遊戲！</>
+                    )}
                   </button>
                 </div>
               </div>
             ) : (
-              <div id="game-container" ref={gameContainerRef} className="w-full" />
+              <div id="game-container" ref={gameContainerRef} className="w-full" style={{ minHeight: '600px' }} />
             )}
           </div>
         </div>
@@ -199,11 +242,11 @@ function PreviewContent() {
                 <div className="space-y-3">
                   <button
                     onClick={() => {
-                      const shareText = `我家寶貝創作了「${gameConfig.gameTitle}」！用${gameConfig.catcherType}接${gameConfig.objectType}的遊戲，充滿了孩子的創意和想像力！快來玩玩看！🎮✨`;
+                      const shareText = `我家寶貝創作了「${gameConfig.gameTitle || '接接樂遊戲'}」！用${gameConfig.catcherType}接${gameConfig.objectType}的遊戲，充滿了孩子的創意和想像力！快來玩玩看！🎮✨`;
                       
                       if (navigator.share) {
                         navigator.share({
-                          title: gameConfig.gameTitle,
+                          title: gameConfig.gameTitle || '我的遊戲',
                           text: shareText,
                           url: window.location.href
                         }).catch(console.error);
